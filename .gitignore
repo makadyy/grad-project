@@ -1,0 +1,30 @@
+# Raw drops — keep the folder + its README, ignore the contents
+_inbox/*
+!_inbox/README.md
+
+# WhatsApp export intermediates
+**/whatsapp-data/
+*.zip
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+.gstack/
+
+# Keep the pipeline folders structure, but ignore the heavy data inside
+data-pipeline/raw/*
+data-pipeline/out/*
+*.log
