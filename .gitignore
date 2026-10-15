@@ -1,6 +1,11 @@
-# Raw drops — keep the folder + its README, ignore the contents
-_inbox/*
-!_inbox/README.md
+# Non-code folders & personal docs
+_inbox/
+tasks/
+chapter-1/
+mockups/
+.claude/
+.codex/
+.remember/
 
 # WhatsApp export intermediates
 **/whatsapp-data/
@@ -26,5 +31,15 @@ node_modules/
 
 # Keep the pipeline folders structure, but ignore the heavy data inside
 data-pipeline/raw/*
-data-pipeline/out/*
+data-pipeline/out/*.npz
+data-pipeline/out/*.parquet
+data-pipeline/out/*.bin
+data-pipeline/out/*.csv
+data-pipeline/out/_progress.json
 *.log
+
+data-pipeline/liu2022/
+
+data-pipeline/out/parquet/
+data-pipeline/out/*.joblib
+data-pipeline/out/*.json
