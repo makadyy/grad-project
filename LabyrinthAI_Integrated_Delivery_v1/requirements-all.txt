@@ -1,0 +1,18 @@
+# A1 data preparation, splitting and baselines
+numpy>=1.24
+pandas>=2.0
+pyarrow>=12
+scikit-learn>=1.3
+xgboost>=2.0
+imbalanced-learn>=0.11
+tabulate>=0.9
+
+# A2 tests / optional XAI
+pytest>=7.4
+
+# A3 Gymnasium environment
+gymnasium>=0.29,<2.0
+
+# A4 synthetic world, optional PostgreSQL driver
+faker>=24
+psycopg[binary]>=3.1
