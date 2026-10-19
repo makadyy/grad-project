@@ -99,113 +99,68 @@ attacker → [Gatekeeper] → fake world → [Profiler] → [Maze] → next move
 
 ---
 
-## File map
+## Where everything lives
 
-```
-README.md              this file
-requirements.txt       every Python package the project needs (one install)
-pytest.ini             tells pytest where the tests are
-```
+One folder per job. Same names as the 4 parts above.
 
-### `gatekeeper/` — Gatekeeper (Abdelrahman)
-| File | Role |
-|---|---|
-| `01_prepare_parquet.py` | Step 1: clean the raw CIC-IDS2018 CSVs (drop IDs, bad rows, duplicates) → `out/parquet/` |
-| `02_eda_split.py` | Step 2: count classes per day, split into train / val / test + one unseen day |
-| `03_baselines.py` | Step 3: train Decision Tree + XGBoost, write the scores |
-| `build_dataset.py` | Older all-in-one pipeline (streams `raw/` → `out/`). Kept for reference |
-| `requirements.txt` | Packages for this part only |
-| `raw/`, `liu2022/`, `out/` | The dataset and outputs. Big, **not** in git |
+| Folder | Part | What's inside, simply |
+|---|---|---|
+| `gatekeeper/` | 1. Gatekeeper | 3 scripts you run in order: **clean** the data → **split** it → **train** the model |
+| `profiler/` | 2. Profiler | The code that **counts** what the thief does, and the code that **explains** the verdict |
+| `maze/` | 3. Maze | The **game** (moves + rewards) and the **rules** that pick the next move |
+| `genai/` | 4. GenAI | Builds the **fake company**, **writes** fake emails/memos, and **checks** them |
+| `integration/` | all 4 | One test that runs the parts **together** to prove they connect |
 
-### `profiler/` — Profiler (Seif)
-| File | Role |
-|---|---|
-| `src/profiler_xai/feature_extractor.py` | Turns live events into the 30 session numbers (updates as events arrive) |
-| `src/profiler_xai/schemas.py` | The shape of an event and of a feature record |
-| `src/profiler_xai/shap_service.py` | Explains a prediction ("Pro because…") with SHAP |
-| `docs/session_features.md` | The list of the 30 features and where each comes from |
-| `docs/evaluation_rubric.md` | Grading rules: amateur vs. pro |
-| `examples/events.jsonl` | Sample events to try the extractor on |
-| `tests/` | Tests |
+The most important files:
 
-### `maze/` — Maze (Malak)
-| File | Role |
-|---|---|
-| `maze_env.py` | The practice game (Gymnasium env): state, 5 moves, rewards, shield |
-| `policy.py` | Version 1 fixed rules that pick the move |
-| `maze_spec.md` | The rules of the game written out |
-| `tests/` | Tests |
-
-### `genai/` — GenAI (Martina)
-| File | Role |
-|---|---|
-| `world_model.py` → `world_model.json` | Builds the fake company (people, departments, systems, bait files) |
-| `knowledge_base.py` | Cuts the company into small facts the AI can look up |
-| `rag_pipeline.py` | Talks to Llama (Ollama) and looks up facts before writing (RAG) |
-| `generators.py` | Writes emails, memos and fake database rows |
-| `quality_gate.py` | Rejects anything that mentions people/files that don't exist |
-| `build_artifacts.py` | Runs it all: plan → write → check → retry → save to `out/` |
-| `gen_test.py` | First check that Ollama + Llama work on this machine |
-| `schema.sql`, `docker-compose.yml` | The Postgres + pgvector database for the facts |
-| `test_pipeline.py` | Tests |
-
-### `integration/`
-| File | Role |
-|---|---|
-| `run_smoke.py` | Runs Profiler → Maze with GenAI's fake company, end to end, offline |
-| `test_integration.py` | Same thing as a test |
-
-### Run it
-```bash
-pip install -r requirements.txt
-pytest -q                                   # all tests
-python integration/run_smoke.py             # all parts together
-cd gatekeeper && python 01_prepare_parquet.py && python 02_eda_split.py && python 03_baselines.py
-```
+- `gatekeeper/01_prepare_parquet.py` → `02_eda_split.py` → `03_baselines.py` — run in this order
+- `profiler/src/profiler_xai/feature_extractor.py` — turns the thief's actions into numbers
+- `maze/maze_env.py` — the game; `maze/policy.py` — the rules
+- `genai/world_model.json` — the fake company; `genai/build_artifacts.py` — makes all the fake files
+- `requirements.txt` — install everything with `pip install -r requirements.txt`
+- Run all tests with `pytest -q`
 
 ---
 
-## Data fields
+## What the data looks like
 
-### Gatekeeper — one row = one network connection (CIC-IDS2018, Liu 2022 fixed version)
-- **69 number columns.** Removed first: Flow ID, IPs, ports, timestamp (they would let the
-  model cheat by memorising addresses).
-  - **Size & count:** `Tot Fwd Pkts`, `Tot Bwd Pkts`, `TotLen Fwd Pkts`, `TotLen Bwd Pkts`, packet length max/min/mean/std (fwd, bwd, overall), `Pkt Size Avg`, segment sizes, header lengths, subflow counts
-  - **Speed & timing:** `Flow Duration`, `Flow Byts/s`, `Flow Pkts/s`, `Fwd Pkts/s`, `Bwd Pkts/s`, IAT (time between packets) mean/std/max/min, Active/Idle mean/std/max/min
-  - **TCP flags:** `FIN`, `SYN`, `RST`, `PSH`, `ACK`, `URG`, `CWE`, `ECE` counts, `Fwd PSH/URG Flags`
-  - **Other:** `Protocol`, `Down/Up Ratio`, `Init Fwd/Bwd Win Byts`, `Fwd Act Data Pkts`
-  - Full list: `gatekeeper/out/feature_columns.json`
-- **`Label`** (the answer, 15 classes): `Benign`, `Bot`, `Infilteration`, `SQL Injection`,
-  `Brute Force -Web`, `Brute Force -XSS`, `FTP-BruteForce`, `SSH-Bruteforce`, 4 × `DoS`
-  (GoldenEye, Hulk, SlowHTTPTest, Slowloris), 3 × `DDoS` (HOIC, LOIC-UDP, LOIC-HTTP)
-- **`Day`**: which capture day the row came from (one whole day is kept unseen for testing)
+### Gatekeeper — "one row = one connection"
 
-### Profiler — one row = one attacker session inside the fake world
-- **Input event** (from Cowrie / portal / database / Wazuh): `session_id`, `event_id`,
-  `timestamp`, `source`, `event_type`, plus optional `src_ip`, `username`, `command`,
-  `bytes_in`, `bytes_out`, `status`, `severity`, `resource`
-- **30 output features:**
-  - **Volume & pace:** `event_count`, `duration_seconds`, `events_per_minute`, `inter_event_seconds_mean`, `inter_event_seconds_max`
-  - **Per source:** `cowrie_event_count`, `portal_event_count`, `database_event_count`, `wazuh_alert_count`
-  - **Logins:** `login_attempt_count`, `login_failure_count`, `login_success_count`, `login_failure_rate`, `portal_auth_failure_count`
-  - **Commands & files:** `command_event_count`, `unique_command_count`, `suspicious_command_count`, `file_download_event_count`, `file_upload_event_count`, `network_connection_count`
-  - **Data moved:** `bytes_in_total`, `bytes_out_total`, `bytes_total`, `distinct_resource_count`
-  - **Actions:** `portal_admin_action_count`, `database_read_count`, `database_write_count`, `database_delete_count`
-  - **Alerts:** `wazuh_high_severity_count`, `wazuh_critical_severity_count`
-  - Definitions: `profiler/docs/session_features.md`
+Every time a computer talks to another, that's one row. For each row we know:
 
-### Maze — the game state (each 0–3, except `turn`)
-`turn` (max 12), `intel` (how much we learned), `exposure` (how much he has seen),
-`alert` (how suspicious he is), `progress` (how close to something real), `contained`.
-Moves: `OBSERVE`, `DEEPEN`, `LURE`, `SLOW`, `CONTAIN`.
+- **How much** was sent (number of packets, total bytes)
+- **How fast** (packets per second, gap between packets, how long it lasted)
+- **What kind** of messages (TCP "flags" — e.g. lots of SYN = someone knocking on many doors)
+- **The answer:** `Benign` (normal) or which attack it was — e.g. DoS, DDoS, brute-force
+  password guessing, SQL injection, Bot
 
-### GenAI — the fake company (`genai/world_model.json`)
-| Table | Fields |
+69 number columns in total. We **delete** IP addresses and times first, so the model learns
+*behaviour*, not "this IP was bad."
+
+### Profiler — "one row = one thief's visit"
+
+Every action the thief does (log in, type a command, open a file) is an **event**. We turn all
+his events into **30 numbers**, for example:
+
+| Number | Plain meaning |
 |---|---|
-| `employees` | `employee_id`, `full_name`, `email`, `department`, `title`, `manager_id`, `hire_date`, `salary_band`, `phone`, `username`, `office` |
-| `departments` | `code`, `name`, `head_id`, `member_ids` |
-| `systems` | `system_id`, `name`, `kind`, `owner_department`, `host`, `sensitivity`, `admin_id` |
-| `customers` | `customer_id`, `company`, `contact_name`, `email`, `city`, `credit_limit`, `account_manager_id` |
-| `vendors` | `vendor_id`, `name`, `category`, `contact_email`, `iban_last4`, `owner_id` |
-| `projects` | `project_id`, `name`, `department`, `lead_id`, `member_ids`, `start`, `status` |
-| `honey` (bait) | `honey_id`, `kind`, `path`, `owner_id`, `lure` |
+| `events_per_minute` | How fast he works |
+| `login_failure_count` | How many wrong passwords |
+| `unique_command_count` | How many different commands he knows |
+| `suspicious_command_count` | Commands like downloading tools |
+| `database_delete_count` | Did he try to delete data |
+| `bytes_out_total` | How much data he tried to take out |
+
+Full list with definitions: `profiler/docs/session_features.md`.
+
+### Maze — "what the manager sees"
+
+Five meters, each from 0 (low) to 3 (high): **intel** (how much we learned about him),
+**exposure** (how much he has seen), **alert** (how suspicious he is), **progress** (how close he
+is to something real), **contained** (is he locked in). The game ends after 12 turns.
+
+### GenAI — "the fake company"
+
+A made-up company with **employees** (name, email, job, manager), **departments**, **computer
+systems**, **customers**, **suppliers**, **projects**, and **bait files** (fake passwords, etc.).
+Everything the AI writes must only mention things on this list.
