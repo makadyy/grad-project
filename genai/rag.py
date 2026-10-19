@@ -1,5 +1,5 @@
 """
-rag_pipeline.py  (A4, Day 4-5)  Retrieval (pgvector) + prompt template + Ollama calls.
+rag.py  (A4, Day 4-5)  Retrieval (pgvector) + prompt template + Ollama calls.
 
 Pieces
   OllamaClient      generate() and embed() over the local Ollama HTTP API (stdlib only)
@@ -16,7 +16,7 @@ import math
 import re
 import urllib.request
 
-from knowledge_base import build_chunks
+from facts import build_chunks
 
 EMB_DIM = 768
 DOC_PREFIX = "search_document: "

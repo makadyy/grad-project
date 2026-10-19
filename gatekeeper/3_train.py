@@ -1,6 +1,6 @@
 """
 Step 3: baselines. Trains Decision Tree + XGBoost on train, reports macro-F1 / per-class
-metrics on val, test and the unseen-day set. Run: python 03_baselines.py
+metrics on val, test and the unseen-day set. Run: python 3_train.py
 """
 import json
 import os
@@ -24,7 +24,7 @@ def main():
     feats = json.load(open(os.path.join(OUT, "feature_columns.json")))
     Xtr, ytr = load("train", feats)
     if len(ytr) == 0:
-        raise SystemExit("train split is empty - re-run 02_eda_split.py with more data")
+        raise SystemExit("train split is empty - re-run 2_split.py with more data")
     if len(set(ytr)) < 2:
         raise SystemExit("train split has a single class - baselines need at least 2 classes")
     le = LabelEncoder().fit(ytr)

@@ -1,8 +1,8 @@
-from run_smoke import run_smoke
+from run_all import run_all
 
 
 def test_offline_cross_workstream_smoke():
-    result = run_smoke()
+    result = run_all()
     assert result["status"] == "PASS"
     assert result["a2_session_features"]["event_count"] == 4
     assert result["a4"]["generated_artifacts"] == 20

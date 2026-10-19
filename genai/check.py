@@ -1,8 +1,8 @@
 """
-quality_gate.py  (A4, Day 6)  Quality gate v1.
+check.py  (A4, Day 6)  Quality gate v1.
 
 An artifact is ACCEPTED only if every hard check passes. Each failure comes back as a short
-reason code, so build_artifacts.py can count why things get rejected and you can tune prompts.
+reason code, so run.py can count why things get rejected and you can tune prompts.
 
 Text artifacts (email, memo)
   structure     Subject line, body length, greeting / sign-off present, not cut off mid-sentence

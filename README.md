@@ -36,7 +36,7 @@ It decides by watching what he does:
 **The job, in 4 steps:**
 
 1. **Make a list of ~30 things worth counting.** Number of commands typed, average time between
-   commands, number of typos, did he try to become admin… That list is `session_features.md`.
+   commands, number of typos, did he try to become admin… That list is `features.md`.
 2. **Write the grading rules (the rubric).** Example: "if he tried admin and types fast → Pro."
    Like a teacher's marking scheme.
 3. **Write code that updates those counts live.** Every time the thief types something, the
@@ -74,7 +74,7 @@ A fake bank needs fake but **believable** stuff inside: emails, memos, employee 
 email mentions an employee who doesn't exist, the thief realizes it's a trap.
 
 1. **Invent a fake company first:** names, departments, who's the manager of whom
-   (`world_model.json`).
+   (`company.json`).
 2. **Use an AI writer (Llama, running locally) to write emails and memos** about that company.
 3. **Before writing, give the AI the facts ("RAG").** Before writing an email from "Ahmed in
    Finance," the system looks up who Ahmed is and gives that to the AI, so it never invents a
@@ -114,11 +114,11 @@ code and data files at the top, its tests in `tests/`.
 
 The most important files:
 
-- `gatekeeper/01_prepare_parquet.py` → `02_eda_split.py` → `03_baselines.py` — run in this order
-  (`build_dataset.py` is the older one-script version; today's `gatekeeper/out/` was made with it)
-- `profiler/feature_extractor.py` — turns the thief's actions into numbers
-- `maze/maze_env.py` — the game; `maze/policy.py` — the rules
-- `genai/world_model.json` — the fake company; `genai/build_artifacts.py` — makes all the fake files
+- `gatekeeper/1_clean.py` → `2_split.py` → `3_train.py` — run in this order
+  (`old_pipeline.py` is the older one-script version; today's `gatekeeper/out/` was made with it)
+- `profiler/features.py` — turns the thief's actions into numbers
+- `maze/game.py` — the game; `maze/rules.py` — the rules
+- `genai/company.json` — the fake company; `genai/run.py` — makes all the fake files
 - `genai/docker-compose.yml` + `schema.sql` — optional database for the company facts
   (only with `--pg`; without it the facts are kept in memory)
 
@@ -129,15 +129,15 @@ pip install -r requirements.txt     # once
 pytest -q                           # all tests
 
 cd gatekeeper                       # Gatekeeper (needs the dataset in liu2022/)
-python 01_prepare_parquet.py && python 02_eda_split.py && python 03_baselines.py
+python 1_clean.py && python 2_split.py && python 3_train.py
 
-python profiler/feature_extractor.py profiler/example_events.jsonl --out features.jsonl
+python profiler/features.py profiler/example_events.jsonl --out features.jsonl
 
 cd genai                            # GenAI
-python build_artifacts.py --dry-run # quick check with a fake AI writer (seconds)
-python build_artifacts.py --n 300   # real run: needs Ollama with llama3.1:8b + nomic-embed-text
+python run.py --dry-run # quick check with a fake AI writer (seconds)
+python run.py --n 300   # real run: needs Ollama with llama3.1:8b + nomic-embed-text
 
-python integration/run_smoke.py     # all parts together
+python integration/run_all.py     # all parts together
 ```
 
 ---
@@ -171,7 +171,7 @@ his events into **30 numbers**, for example:
 | `database_delete_count` | Did he try to delete data |
 | `bytes_out_total` | How much data he tried to take out |
 
-Full list with definitions: `profiler/session_features.md`.
+Full list with definitions: `profiler/features.md`.
 
 ### Maze — "what the manager sees"
 

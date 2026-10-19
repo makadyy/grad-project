@@ -5,12 +5,12 @@ import os
 
 import pytest
 
-from build_artifacts import read_ids, run
-from generators import HONEY_SALARIES, db_batches, gen_db_tables, plan_artifacts
-from knowledge_base import build_chunks
-from quality_gate import QualityGate, parse_text
-from rag_pipeline import RAG, FakeLLM, InMemoryStore, PgVectorStore
-from world_model import build_world, validate
+from run import read_ids, run
+from generate import HONEY_SALARIES, db_batches, gen_db_tables, plan_artifacts
+from facts import build_chunks
+from check import QualityGate, parse_text
+from rag import RAG, FakeLLM, InMemoryStore, PgVectorStore
+from company import build_world, validate
 
 
 @pytest.fixture(scope="module")
@@ -267,8 +267,8 @@ def _refresh_hash(w):
 
 def test_world_validate_rejects_structural_and_type_mutations():
     import copy, json, os
-    from world_model import validate
-    base = json.load(open(os.path.join(os.path.dirname(__file__), "..", "world_model.json"), encoding="utf-8"))
+    from company import validate
+    base = json.load(open(os.path.join(os.path.dirname(__file__), "..", "company.json"), encoding="utf-8"))
     assert validate(base) == []
     muts = {
         "head_other_dept": lambda w: w["departments"][0].__setitem__("head_id", w["departments"][1]["head_id"]),

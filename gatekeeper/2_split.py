@@ -1,10 +1,10 @@
 """
 Step 2: EDA per capture day + data card, constant-column removal, stratified 70/15/15 split
-with an unseen-day hold-out. Reads out/parquet/*.parquet (from 01_prepare_parquet.py).
+with an unseen-day hold-out. Reads out/parquet/*.parquet (from 1_clean.py).
 
 Outputs in out/:  train.parquet, val.parquet, test.parquet, unseen_day.parquet,
                   eda_classes_per_day.csv, DATA_CARD.md, feature_columns.json
-Run:  python 02_eda_split.py [--holdout-day Wednesday-28-02-2018]
+Run:  python 2_split.py [--holdout-day Wednesday-28-02-2018]
 """
 import argparse
 import glob

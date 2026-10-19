@@ -13,7 +13,7 @@ What it does, in order:
   4. Saves out/parquet/<day>.parquet (features float32 + Label + Day) and out/clean_stats.json.
 Constant-column removal happens in step 2 (it needs the training split only).
 
-Run:  python 01_prepare_parquet.py
+Run:  python 1_clean.py
 """
 import glob
 import json

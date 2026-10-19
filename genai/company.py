@@ -1,17 +1,17 @@
 """
-world_model.py  (A4 Martina, Day 1-3)
+company.py  (A4 Martina, Day 1-3)
 
 Builds the fake company ("the world") that every generated artifact
 (emails, memos, DB rows) must stay consistent with.
 
-Deterministic: same SEED  ->  byte-identical world_model.json.
+Deterministic: same SEED  ->  byte-identical company.json.
 No call to datetime.now(); all dates are derived from ANCHOR_DATE.
 
 Run:
     pip install faker
-    python world_model.py                 # writes world_model.json
-    python world_model.py --seed 7 --employees 60 --out other.json
-    python world_model.py --check         # build twice + validate, exit 1 on failure
+    python company.py                 # writes company.json
+    python company.py --seed 7 --employees 60 --out other.json
+    python company.py --check         # build twice + validate, exit 1 on failure
 """
 import argparse
 import hashlib
@@ -245,7 +245,7 @@ def build_world(seed: int = SEED, n_employees: int = N_EMPLOYEES) -> dict:
             "schema_version": SCHEMA_VERSION,
             "seed": seed,
             "anchor_date": ANCHOR_DATE.isoformat(),
-            "generator": "world_model.py",
+            "generator": "company.py",
             "faker_locale": "en_US",
         },
         "company": {
@@ -336,7 +336,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed", type=int, default=SEED)
     ap.add_argument("--employees", type=int, default=N_EMPLOYEES)
-    ap.add_argument("--out", default="world_model.json")
+    ap.add_argument("--out", default="company.json")
     ap.add_argument("--check", action="store_true", help="build twice, compare, validate")
     a = ap.parse_args()
 

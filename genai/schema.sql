@@ -1,5 +1,5 @@
 -- schema.sql  (A4)  pgvector store for the RAG knowledge base.
--- nomic-embed-text returns 768-dim vectors; change the number here AND EMB_DIM in rag_pipeline.py together.
+-- nomic-embed-text returns 768-dim vectors; change the number here AND EMB_DIM in rag.py together.
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE TABLE IF NOT EXISTS kb_chunks (
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS kb_chunks (
     text       TEXT NOT NULL,             -- the fact sentence(s) the LLM will see
     meta       JSONB NOT NULL DEFAULT '{}',
     embedding  vector(768) NOT NULL,
-    world_sha  TEXT NOT NULL              -- world_model content_sha256 this row was built from
+    world_sha  TEXT NOT NULL              -- company content_sha256 this row was built from
 );
 
 -- cosine distance index (operator <=>)

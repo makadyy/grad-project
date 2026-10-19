@@ -4,7 +4,7 @@ Owner: Seif Mohamed. The official C6 wording was not supplied. C6 is therefore *
 
 | Criterion | Weight | Pass evidence | Measurement |
 |---|---:|---|---|
-| Feature correctness | 25% | 30 features match `session_features.md` | unit tests + hand-calculated fixture |
+| Feature correctness | 25% | 30 features match `features.md` | unit tests + hand-calculated fixture |
 | Incremental behavior | 15% | batch ingestion and snapshot/restore work | snapshot test |
 | Input validation | 10% | missing fields, unsupported source, negative bytes fail clearly | unit tests |
 | Robustness | 10% | duplicate IDs ignored; zero-duration features finite | unit tests |

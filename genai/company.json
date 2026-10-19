@@ -3,7 +3,7 @@
     "schema_version": "1.0",
     "seed": 42,
     "anchor_date": "2025-01-15",
-    "generator": "world_model.py",
+    "generator": "company.py",
     "faker_locale": "en_US",
     "content_sha256": "047f22dc143d3457851188680bc23555c918725124880911f5ba7c2b08a5163f"
   },

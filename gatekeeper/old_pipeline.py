@@ -11,7 +11,7 @@ Implements Chapter 1, Section 1.6.3 exactly:
   - undersample Benign + SMOTE rare attacks, train split only
   - saves scaler, label map, and a full JSON report of every count
 
-One command, one output: `python build_dataset.py`
+One command, one output: `python old_pipeline.py`
 """
 
 import glob

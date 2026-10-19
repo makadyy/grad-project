@@ -1,5 +1,5 @@
 """
-knowledge_base.py  (A4, Day 4)  world_model.json -> list of fact "chunks" for retrieval.
+facts.py  (A4, Day 4)  company.json -> list of fact "chunks" for retrieval.
 
 One chunk = one short, self-contained fact paragraph (what the LLM will read as CONTEXT).
 Chunk ids are stable (emp:E1004, proj:P03 ...) so re-ingesting is an upsert, not a duplicate.
@@ -7,7 +7,7 @@ Chunk ids are stable (emp:E1004, proj:P03 ...) so re-ingesting is an upsert, not
 import json
 
 
-def load_world(path="world_model.json"):
+def load_world(path="company.json"):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 

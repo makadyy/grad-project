@@ -16,14 +16,14 @@ sys.path.insert(0, str(ROOT / "profiler"))
 sys.path.insert(0, str(ROOT / "maze"))
 sys.path.insert(0, str(A4))
 
-from feature_extractor import FeatureExtractor  # noqa: E402
-from maze_env import MazeEnv, MazeState  # noqa: E402
-from policy import choose_action  # noqa: E402
-import world_model  # noqa: E402
-from knowledge_base import build_chunks  # noqa: E402
+from features import FeatureExtractor  # noqa: E402
+from game import MazeEnv, MazeState  # noqa: E402
+from rules import choose_action  # noqa: E402
+import company  # noqa: E402
+from facts import build_chunks  # noqa: E402
 
 
-def run_smoke() -> dict:
+def run_all() -> dict:
     # Small deterministic fixture exercises all four accepted A2 event sources.
     events = [
         {"session_id":"demo-1","event_id":"e1","timestamp":"2025-01-14T10:00:00Z","source":"cowrie","event_type":"command","command":"wget example.invalid","resource":"/tmp/payload"},
@@ -35,8 +35,8 @@ def run_smoke() -> dict:
     extractor.add_events(events)
     features = extractor.features_for("demo-1")
 
-    world = world_model.build_world()
-    world_errors = world_model.validate(world)
+    world = company.build_world()
+    world_errors = company.validate(world)
     if world_errors:
         raise RuntimeError(f"A4 world validation failed: {world_errors}")
     chunks = build_chunks(world)
@@ -44,8 +44,8 @@ def run_smoke() -> dict:
     # Generate a small A4 offline set using FakeLLM; no Ollama or database required.
     with tempfile.TemporaryDirectory(prefix="gatekeeper-a4-smoke-") as td:
         subprocess.run([
-            sys.executable, str(A4 / "build_artifacts.py"), "--dry-run", "--n", "20",
-            "--world", str(A4 / "world_model.json"), "--out", td,
+            sys.executable, str(A4 / "run.py"), "--dry-run", "--n", "20",
+            "--world", str(A4 / "company.json"), "--out", td,
         ], cwd=A4, check=True, capture_output=True, text=True)
         artifact_path = Path(td) / "artifacts.jsonl"
         artifacts = [json.loads(line) for line in artifact_path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -67,7 +67,7 @@ def run_smoke() -> dict:
         progress=min(3, int(features["database_write_count"] + features["database_delete_count"])),
     )
     scenario = {
-        "company": world_model.COMPANY_NAME,
+        "company": company.COMPANY_NAME,
         "world_sha256": world["meta"]["content_sha256"],
         "knowledge_chunks": len(chunks),
         "generated_artifacts": len(artifacts),
@@ -98,4 +98,4 @@ def run_smoke() -> dict:
 
 
 if __name__ == "__main__":
-    print(json.dumps(run_smoke(), indent=2, ensure_ascii=False))
+    print(json.dumps(run_all(), indent=2, ensure_ascii=False))

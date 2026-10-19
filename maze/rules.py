@@ -1,6 +1,6 @@
 """Tested deterministic v0 rule policy for MazeEnv."""
 from typing import Sequence
-from maze_env import Action
+from game import Action
 
 
 def choose_action(observation: Sequence[int], action_mask: Sequence[int]) -> Action:

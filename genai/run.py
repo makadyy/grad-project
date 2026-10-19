@@ -1,9 +1,9 @@
 """
-build_artifacts.py  (A4, Day 6-10)  Produce the artifacts: plan -> generate -> gate -> save.
+run.py  (A4, Day 6-10)  Produce the artifacts: plan -> generate -> gate -> save.
 
-  python build_artifacts.py --dry-run                      # fake LLM + in-memory store: tests the whole flow in seconds
-  python build_artifacts.py --n 300                        # real: Ollama + in-memory store
-  python build_artifacts.py --n 300 --pg                   # real: Ollama + pgvector (docker compose up -d first)
+  python run.py --dry-run                      # fake LLM + in-memory store: tests the whole flow in seconds
+  python run.py --n 300                        # real: Ollama + in-memory store
+  python run.py --n 300 --pg                   # real: Ollama + pgvector (docker compose up -d first)
 
 Output (folder out/):
   artifacts.jsonl    accepted artifacts, one JSON per line
@@ -18,11 +18,11 @@ import json
 import os
 import time
 
-from generators import (HONEY_SALARIES, allowed_names_from_hits, db_batches, gen_db_tables, gen_email,
+from generate import (HONEY_SALARIES, allowed_names_from_hits, db_batches, gen_db_tables, gen_email,
                         gen_memo, plan_artifacts)
-from knowledge_base import load_world
-from quality_gate import QualityGate
-from rag_pipeline import RAG, FakeLLM, InMemoryStore, OllamaClient, PgVectorStore
+from facts import load_world
+from check import QualityGate
+from rag import RAG, FakeLLM, InMemoryStore, OllamaClient, PgVectorStore
 
 
 def read_ids(path):
@@ -207,7 +207,7 @@ def _tables_schema(world):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=300)
-    ap.add_argument("--world", default="world_model.json")
+    ap.add_argument("--world", default="company.json")
     ap.add_argument("--out", default="out")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--max-attempts", type=int, default=3)

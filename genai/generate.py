@@ -1,10 +1,10 @@
 """
-generators.py  (A4, Day 5-6)  Plans and generates the artifacts.
+generate.py  (A4, Day 5-6)  Plans and generates the artifacts.
 
   plan_artifacts()   deterministic list of specs (who writes to whom about what) - no LLM involved
   gen_email()        RAG prompt -> Llama -> checked by the gate
   gen_memo()         same for memos
-  gen_db_tables()    rule-based rows that follow world_model["db_tables"] (no LLM: foreign keys must be exact)
+  gen_db_tables()    rule-based rows that follow company["db_tables"] (no LLM: foreign keys must be exact)
 
 Why DB rows are rule-based: an order that points to a customer_id that does not exist is an instant tell for an
 attacker, and an LLM cannot guarantee referential integrity. Free-text fields can be LLM-filled later.
@@ -131,7 +131,7 @@ def plan_artifacts(world, n_total=300, seed=42, share_memo=0.2, share_db=0.3):
 
 # ----------------------------------------------------------------------------------------------- text
 def parse_llm_text(raw):
-    from quality_gate import parse_text
+    from check import parse_text
     return parse_text(raw)
 
 
