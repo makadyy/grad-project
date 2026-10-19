@@ -34,4 +34,3 @@ Optional SHAP dependencies: `python -m pip install -e ".[xai]"`.
 
 The extractor currently accepts **normalized events**, not arbitrary raw log exports. Source-specific adapters are still required. The SHAP skeleton must be smoke-tested with the actual trained XGBoost model and its saved feature order before claiming end-to-end integration.
 
-See `INTEGRATION_GUIDE.md` for repository placement and next integration steps.
