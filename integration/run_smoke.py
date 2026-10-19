@@ -11,10 +11,9 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT = ROOT / "grad-project-main"
-A4 = ROOT / "a4-genai"
-sys.path.insert(0, str(PROJECT / "seif_profiler_xai" / "src"))
-sys.path.insert(0, str(PROJECT / "maze_rl"))
+A4 = ROOT / "genai"
+sys.path.insert(0, str(ROOT / "profiler" / "src"))
+sys.path.insert(0, str(ROOT / "maze"))
 sys.path.insert(0, str(A4))
 
 from profiler_xai.feature_extractor import FeatureExtractor  # noqa: E402
@@ -80,7 +79,7 @@ def run_smoke() -> dict:
     action = choose_action(obs, info["action_mask"])
     next_obs, reward, terminated, truncated, step_info = env.step(action)
 
-    a1_out = PROJECT / "data-pipeline" / "out"
+    a1_out = ROOT / "gatekeeper" / "out"
     a1_ready = all((a1_out / name).exists() for name in (
         "train.parquet", "val.parquet", "test.parquet", "unseen_day.parquet", "baseline_results.json"))
     return {

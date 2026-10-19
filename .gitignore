@@ -30,16 +30,16 @@ node_modules/
 .gstack/
 
 # Keep the pipeline folders structure, but ignore the heavy data inside
-data-pipeline/raw/*
-data-pipeline/out/*.npz
-data-pipeline/out/*.parquet
-data-pipeline/out/*.bin
-data-pipeline/out/*.csv
-data-pipeline/out/_progress.json
+gatekeeper/raw/*
+gatekeeper/out/*.npz
+gatekeeper/out/*.parquet
+gatekeeper/out/*.bin
+gatekeeper/out/*.csv
+gatekeeper/out/_progress.json
 *.log
 
-data-pipeline/liu2022/
+gatekeeper/liu2022/
 
-data-pipeline/out/parquet/
-data-pipeline/out/*.joblib
-data-pipeline/out/*.json
+gatekeeper/out/parquet/
+gatekeeper/out/*.joblib
+gatekeeper/out/*.json
