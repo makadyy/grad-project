@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
-from .schemas import NormalizedEvent
+from schemas import NormalizedEvent
 
 FEATURE_NAMES = [
 "event_count","duration_seconds","events_per_minute","cowrie_event_count","portal_event_count",

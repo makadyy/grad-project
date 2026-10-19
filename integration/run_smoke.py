@@ -12,11 +12,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 A4 = ROOT / "genai"
-sys.path.insert(0, str(ROOT / "profiler" / "src"))
+sys.path.insert(0, str(ROOT / "profiler"))
 sys.path.insert(0, str(ROOT / "maze"))
 sys.path.insert(0, str(A4))
 
-from profiler_xai.feature_extractor import FeatureExtractor  # noqa: E402
+from feature_extractor import FeatureExtractor  # noqa: E402
 from maze_env import MazeEnv, MazeState  # noqa: E402
 from policy import choose_action  # noqa: E402
 import world_model  # noqa: E402

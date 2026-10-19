@@ -1,3 +1,0 @@
-faker>=24
-psycopg[binary]>=3.1
-pytest>=7          # only for running the tests

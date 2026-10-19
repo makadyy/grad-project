@@ -1,4 +1,4 @@
-# A1 data preparation, splitting and baselines
+# Gatekeeper: clean the data, split it, train the model
 numpy>=1.24
 pandas>=2.0
 pyarrow>=12
@@ -7,12 +7,15 @@ xgboost>=2.0
 imbalanced-learn>=0.11
 tabulate>=0.9
 
-# A2 tests / optional XAI
-pytest>=7.4
+# Profiler: explain the verdict
+shap>=0.45
 
-# A3 Gymnasium environment
+# Maze: the practice game
 gymnasium>=0.29,<2.0
 
-# A4 synthetic world, optional PostgreSQL driver
+# GenAI: the fake company + the optional database
 faker>=24
 psycopg[binary]>=3.1
+
+# Tests
+pytest>=7.4

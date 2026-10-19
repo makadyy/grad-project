@@ -1,7 +1,7 @@
 import json
 import pytest
-from profiler_xai.feature_extractor import FeatureExtractor, FEATURE_NAMES
-from profiler_xai.schemas import NormalizedEvent
+from feature_extractor import FeatureExtractor, FEATURE_NAMES
+from schemas import NormalizedEvent
 
 def ev(**kw):
     d={"event_id":"e1","session_id":"s1","timestamp":"2026-01-01T00:00:00Z","source":"cowrie",
@@ -101,7 +101,7 @@ def test_snapshot_rejects_corrupt_or_nonfinite_values():
 
 def test_shap_shapes_and_inputs_are_checked():
     np=pytest.importorskip("numpy")
-    from profiler_xai.shap_service import ShapService
+    from shap_service import ShapService
     class Explainer:
         def __init__(self, values, base): self.values=values; self.base_values=base
         def __call__(self,row): return self
@@ -112,7 +112,7 @@ def test_shap_shapes_and_inputs_are_checked():
 
 
 def test_huge_byte_counts_saturate_instead_of_wrapping_to_zero():
-    from profiler_xai.feature_extractor import FeatureExtractor, MAX_BYTES
+    from feature_extractor import FeatureExtractor, MAX_BYTES
     fx = FeatureExtractor()
     for i in range(2):
         fx.add_event({"session_id": "s", "source": "cowrie", "event_id": f"e{i}",

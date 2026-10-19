@@ -268,7 +268,7 @@ def _refresh_hash(w):
 def test_world_validate_rejects_structural_and_type_mutations():
     import copy, json, os
     from world_model import validate
-    base = json.load(open(os.path.join(os.path.dirname(__file__), "world_model.json"), encoding="utf-8"))
+    base = json.load(open(os.path.join(os.path.dirname(__file__), "..", "world_model.json"), encoding="utf-8"))
     assert validate(base) == []
     muts = {
         "head_other_dept": lambda w: w["departments"][0].__setitem__("head_id", w["departments"][1]["head_id"]),

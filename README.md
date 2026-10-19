@@ -101,7 +101,8 @@ attacker → [Gatekeeper] → fake world → [Profiler] → [Maze] → next move
 
 ## Where everything lives
 
-One folder per job. Same names as the 4 parts above.
+One folder per job, same names as the 4 parts above. Every folder looks the same:
+code and data files at the top, its tests in `tests/`.
 
 | Folder | Part | What's inside, simply |
 |---|---|---|
@@ -109,16 +110,35 @@ One folder per job. Same names as the 4 parts above.
 | `profiler/` | 2. Profiler | The code that **counts** what the thief does, and the code that **explains** the verdict |
 | `maze/` | 3. Maze | The **game** (moves + rewards) and the **rules** that pick the next move |
 | `genai/` | 4. GenAI | Builds the **fake company**, **writes** fake emails/memos, and **checks** them |
-| `integration/` | all 4 | One test that runs the parts **together** to prove they connect |
+| `integration/` | all 4 | Runs the parts **together** to prove they connect |
 
 The most important files:
 
 - `gatekeeper/01_prepare_parquet.py` → `02_eda_split.py` → `03_baselines.py` — run in this order
-- `profiler/src/profiler_xai/feature_extractor.py` — turns the thief's actions into numbers
+  (`build_dataset.py` is the older one-script version; today's `gatekeeper/out/` was made with it)
+- `profiler/feature_extractor.py` — turns the thief's actions into numbers
 - `maze/maze_env.py` — the game; `maze/policy.py` — the rules
 - `genai/world_model.json` — the fake company; `genai/build_artifacts.py` — makes all the fake files
-- `requirements.txt` — install everything with `pip install -r requirements.txt`
-- Run all tests with `pytest -q`
+- `genai/docker-compose.yml` + `schema.sql` — optional database for the company facts
+  (only with `--pg`; without it the facts are kept in memory)
+
+## How to run
+
+```bash
+pip install -r requirements.txt     # once
+pytest -q                           # all tests
+
+cd gatekeeper                       # Gatekeeper (needs the dataset in liu2022/)
+python 01_prepare_parquet.py && python 02_eda_split.py && python 03_baselines.py
+
+python profiler/feature_extractor.py profiler/example_events.jsonl --out features.jsonl
+
+cd genai                            # GenAI
+python build_artifacts.py --dry-run # quick check with a fake AI writer (seconds)
+python build_artifacts.py --n 300   # real run: needs Ollama with llama3.1:8b + nomic-embed-text
+
+python integration/run_smoke.py     # all parts together
+```
 
 ---
 
@@ -151,7 +171,7 @@ his events into **30 numbers**, for example:
 | `database_delete_count` | Did he try to delete data |
 | `bytes_out_total` | How much data he tried to take out |
 
-Full list with definitions: `profiler/docs/session_features.md`.
+Full list with definitions: `profiler/session_features.md`.
 
 ### Maze — "what the manager sees"
 
