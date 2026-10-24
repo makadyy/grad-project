@@ -117,13 +117,6 @@ function build() {
   el("text", { x: 800, y: 335 }, svg, "Fake network");
   el("text", { x: 720, y: 485 }, svg, "Real network");
 
-  // visitor (identity unknown until the firewall decides)
-  S.pr = el("circle", { cx: P.v[0], cy: P.v[1], r: 26, fill: "none", stroke: css("--mute"), "stroke-width": 3 });
-  S.pf = el("g", { fill: css("--mute") });
-  el("circle", { cx: P.v[0], cy: P.v[1] - 7, r: 7 }, S.pf);
-  el("path", { d: `M${P.v[0] - 15} ${P.v[1] + 15} Q${P.v[0]} ${P.v[1] - 4} ${P.v[0] + 15} ${P.v[1] + 15}` }, S.pf);
-  S.vl = el("text", { x: P.v[0], y: P.v[1] + 56 }, svg, "Visitor");
-
   // firewall: a brick wall with a gate
   bricks(250, 130, 40, 80); bricks(250, 270, 40, 80);
   el("text", { x: 270, y: 374 }, svg, "Firewall");
@@ -139,34 +132,30 @@ function build() {
   });
 
   S.tok = el("g", { class: "tok" });
-  S.tc = el("circle", { r: 12, fill: css("--mute"), stroke: css("--card"), "stroke-width": 3 }, S.tok);
+  S.tc = el("circle", { r: 15, fill: css("--mute"), stroke: css("--card"), "stroke-width": 3 }, S.tok);   // the visitor: one circle that shows its own verdict
   S.tok.style.transition = "none"; S.tok.style.transform = `translate(${P.v[0]}px, ${P.v[1]}px)`;
 }
 
 const moveTo = n => { S.tok.style.transition = ""; S.tok.style.transform = `translate(${P[n][0]}px, ${P[n][1]}px)`; };
 
 const KINDS = {
-  normal:   { col: "--ok",   who: "Staff member", sym: "M-5 0 L-1 4.5 L6 -5" },
-  insider:  { col: "--gold", who: "Staff member", sym: "M0 -6 V1 M0 5 V5.5" },
-  attacker: { col: "--bad",  who: "Outsider",     sym: "M-4.5 -4.5 L4.5 4.5 M4.5 -4.5 L-4.5 4.5" },
+  normal:   { col: "--ok",   sym: "M-6 0 L-2 5 L7 -6" },
+  insider:  { col: "--gold", sym: "M0 -7 V2 M0 6 V6.5" },
+  attacker: { col: "--bad",  sym: "M-5.5 -5.5 L5.5 5.5 M5.5 -5.5 L-5.5 5.5" },
 };
 
-// The visitor stops in the gate with a "?", then gets a tick / "!" / cross, then the path splits.
+// The visitor stops in the gate showing "?", then the same circle turns into a tick / "!" / cross, then the path splits.
 async function throughFirewall(kind) {
   const K = KINDS[kind], col = css(K.col), good = kind === "normal";
   await sleep(500);
   moveTo("g"); await sleep(1100);
-  const mark = el("g", { class: "fade", opacity: 0, transform: "translate(26 0)" }, S.tok);
-  const dot = el("circle", { r: 12, fill: css("--mute") }, mark);
-  const q = el("text", { x: 0, y: 5, fill: "#fff" }, mark, "?"); q.style.fontWeight = 700; q.style.fontSize = "15px";
-  show(mark); await sleep(1500);
-  dot.setAttribute("fill", col); q.remove();
-  el("path", { d: K.sym, fill: "none", stroke: "#fff", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" }, mark);
-  S.tc.setAttribute("fill", col); S.pr.setAttribute("stroke", col); S.pf.setAttribute("fill", col);
-  S.vl.textContent = K.who;
+  const q = el("text", { x: 0, y: 5.5, fill: "#fff" }, S.tok, "?"); q.style.fontWeight = 700; q.style.fontSize = "16px";
+  await sleep(1500);
+  q.remove();
+  S.tc.setAttribute("fill", col);
+  el("path", { d: K.sym, fill: "none", stroke: "#fff", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" }, S.tok);
   await sleep(1200);
   moveTo("c"); await sleep(800);
-  S.lever = null;
   (good ? S.eReal : S.eFake).classList.add("pick");
   (good ? S.eFake : S.eReal).classList.add("dim");
   await sleep(700);
