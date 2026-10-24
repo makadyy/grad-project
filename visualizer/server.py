@@ -1,10 +1,9 @@
-"""Live overview of LabyrinthAI. Run: python visualizer/server.py  ->  http://localhost:8765
+"""Live LabyrinthAI overview. Run: python visualizer/server.py  ->  http://localhost:8765
 
-Replays a scripted attacker session through the REAL Profiler (features.py), the
-integration adapter, and the REAL Maze (game.py + rules.py). Standard library HTTP only.
+Replays a scripted visitor session through the REAL Profiler (features.py), the integration
+adapter, and the REAL Maze (game.py + rules.py), and serves the page. Standard library only.
 """
 from __future__ import annotations
-import hashlib
 import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,21 +14,10 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "profiler"))
 sys.path.insert(0, str(ROOT / "maze"))
-sys.path.insert(0, str(ROOT / "genai"))
 
 from features import FeatureExtractor  # noqa: E402
 from game import MazeEnv, MazeState  # noqa: E402
 from rules import choose_action  # noqa: E402
-import company  # noqa: E402
-from facts import build_chunks  # noqa: E402
-
-
-def _data_file(*parts: str) -> Path | None:
-    """Gitignored outputs live in the main checkout when running from a worktree."""
-    candidates = [ROOT.joinpath(*parts)]
-    if ROOT.parent.name == "worktrees":
-        candidates.append(ROOT.parents[2].joinpath(*parts))
-    return next((p for p in candidates if p.exists()), None)
 
 
 def _t(sec: int) -> str:
@@ -70,31 +58,26 @@ SCENARIOS = {
 
 
 def _icon(source: str, etype: str, extra: dict) -> tuple[str, str]:
-    """Which picture the page draws for an event, plus a tiny label under it."""
+    """Which picture the page draws for an event, plus the data name it touches."""
     cmd = extra.get("command", "")
     if source == "cowrie":
         if "wget" in cmd or "curl" in cmd:
-            return "download", cmd.split()[0]
+            return "download", ""
         if "/etc/shadow" in cmd:
-            return "secretfile", "/etc/shadow"
-        return "terminal", cmd.split()[0] if cmd else "command"
+            return "secretfile", ""
+        return "terminal", ""
     if source == "portal":
-        return ("login", "login") if etype.endswith("success") else ("wrongpass", "login")
-    if source == "database":
-        return ("dbwrite" if "write" in etype or "delete" in etype else "dbread"), extra.get("resource", "")
-    return "alarm", extra.get("resource", "")
+        return ("login" if etype.endswith("success") else "wrongpass"), ""
+    return ("dbwrite" if "write" in etype or "delete" in etype else "dbread"), extra.get("resource", "")
 
 
 def run_session(name: str) -> dict:
-    events = SCENARIOS[name]
     extractor = FeatureExtractor()
     env = MazeEnv()
-    steps, raw = [], []
-    for i, (sec, source, etype, extra, caption) in enumerate(events):
-        ev = {"session_id": name, "event_id": f"e{i}", "timestamp": _t(sec),
-              "source": source, "event_type": etype, **extra}
-        raw.append(ev)
-        extractor.add_event(ev)
+    steps = []
+    for i, (sec, source, etype, extra, caption) in enumerate(SCENARIOS[name]):
+        extractor.add_event({"session_id": name, "event_id": f"e{i}", "timestamp": _t(sec),
+                             "source": source, "event_type": etype, **extra})
         f = extractor.features_for(name)
         # Same adapter as integration/run_all.py; exposure/alert capped at 2 so the state is non-terminal at reset.
         state = MazeState(
@@ -106,40 +89,17 @@ def run_session(name: str) -> dict:
         )
         obs, info = env.reset(options={"state": state})
         action = choose_action(obs, info["action_mask"])
-        _, reward, terminated, truncated, step = env.step(action)
+        _, _, _, _, step = env.step(action)
         icon, tag = _icon(source, etype, extra)
-        steps.append({
-            "caption": caption, "source": source, "event_type": etype, "icon": icon, "tag": tag,
-            "features": {k: f[k] for k in ("event_count", "suspicious_command_count",
-                                           "portal_auth_failure_count", "database_write_count",
-                                           "wazuh_critical_severity_count", "distinct_resource_count")},
-            "state": {k: getattr(state, k) for k in ("intel", "exposure", "alert", "progress")},
-            "requested": step["requested_action"], "executed": step["executed_action"],
-            "shielded": step["shielded"], "reward": round(reward, 2),
-            "contained": bool(step["success"]), "ended": bool(terminated or truncated),
-            "reason": step["termination_reason"],
-        })
+        steps.append({"caption": caption, "icon": icon, "tag": tag,
+                      "state": {k: getattr(state, k) for k in ("intel", "exposure", "alert", "progress")},
+                      "executed": step["executed_action"], "contained": bool(step["success"])})
         if step["success"]:
             break
-    digest = hashlib.sha256(json.dumps(raw[:len(steps)], sort_keys=True).encode()).hexdigest()
-    return {"scenario": name, "steps": steps, "evidence_sha256": digest,
-            "outcome": "contained" if steps[-1]["contained"] else "still watching"}
+    return {"steps": steps, "outcome": "contained" if steps[-1]["contained"] else "still watching"}
 
 
-def overview() -> dict:
-    world = company.build_world()
-    out = {"genai": {"company": company.COMPANY_NAME, "employees": len(world["employees"]),
-                     "systems": len(world["systems"]), "customers": len(world["customers"]),
-                     "facts": len(build_chunks(world)), "valid": not company.validate(world)},
-           "gatekeeper": None}
-    report = _data_file("gatekeeper", "out", "report.json")
-    if report:
-        stage = json.loads(report.read_text(encoding="utf-8"))["stages"][0]
-        labels = stage["label_distribution_all_clean_data"]
-        out["gatekeeper"] = {"raw": stage["raw_rows_seen"], "clean": stage["clean_rows_kept"],
-                             "attacks": stage["clean_rows_kept"] - labels.get("Benign", 0),
-                             "classes": len(labels)}
-    return out
+STATIC = {"index.html": "text/html; charset=utf-8", "common.js": "text/javascript", "common.css": "text/css"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -152,18 +112,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         url = urlparse(self.path)
-        static = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
         name = "index.html" if url.path == "/" else url.path.lstrip("/")
-        if "/" not in name and (HERE / name).is_file() and Path(name).suffix in static:
-            self._send(200, (HERE / name).read_bytes(), static[Path(name).suffix])
-        elif url.path == "/api/overview":
-            self._send(200, json.dumps(overview()).encode(), "application/json")
+        if name in STATIC:
+            self._send(200, (HERE / name).read_bytes(), STATIC[name])
         elif url.path == "/api/run":
-            name = parse_qs(url.query).get("scenario", ["skilled"])[0]
-            if name not in SCENARIOS:
+            scenario = parse_qs(url.query).get("scenario", ["skilled"])[0]
+            if scenario not in SCENARIOS:
                 self._send(400, b'{"error":"unknown scenario"}', "application/json")
                 return
-            self._send(200, json.dumps(run_session(name)).encode(), "application/json")
+            self._send(200, json.dumps(run_session(scenario)).encode(), "application/json")
         else:
             self._send(404, b"not found", "text/plain")
 

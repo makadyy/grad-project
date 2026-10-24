@@ -1,27 +1,250 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LabyrinthAI Versions</title>
+<title>LabyrinthAI Overview</title>
 <link rel="stylesheet" href="common.css">
 <style>
-body { overflow: auto; }
-main { max-width: none; height: auto; display: block; padding: 12px; }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.tile { position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; }
-.frame { position: relative; aspect-ratio: 960 / 470; overflow: hidden; }
-.frame iframe { width: 200%; height: 200%; border: 0; transform: scale(.5); transform-origin: top left; pointer-events: none; }
-.tile a { position: absolute; inset: 0; z-index: 2; }
-.num { position: absolute; top: 8px; left: 8px; z-index: 3; width: 30px; height: 30px; border-radius: 50%;
-  background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
-@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+.node { fill: var(--dim); stroke: var(--line); stroke-width: 3; transition: all .5s; }
+.node.fake { fill: var(--room); stroke: var(--accent); }
+.node.hit { fill: color-mix(in srgb, var(--accent) 22%, var(--room)); }
+.node.caught { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 16%, var(--room)); }
+.node.okn { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 20%, var(--room)); }
+.edge { stroke: var(--line); stroke-width: 3; transition: stroke .4s, opacity .4s; }
+.edge.fake { stroke: var(--accent); stroke-dasharray: 8 6; }
+.edge.pick { stroke-width: 5; }
+.edge.real.pick { stroke: var(--ok); }
+.edge.dim { opacity: .25; }
+.edge.cut { stroke: var(--bad); stroke-dasharray: none; }
+.fw { fill: none; stroke: var(--line); stroke-width: 2; }
+.stage { fill: var(--room); stroke: var(--line); stroke-width: 3; transition: all .4s; }
+.stage.on { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 14%, var(--room)); }
+.stage.okv { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 16%, var(--room)); }
+.stage.warnv { stroke: var(--gold); fill: color-mix(in srgb, var(--gold) 16%, var(--room)); }
+.stage.badv { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 14%, var(--room)); }
+.ic { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic.red { stroke: var(--bad); } .ic.gold { stroke: var(--gold); } .ic.green { stroke: var(--ok); } .ic.acc { stroke: var(--accent); }
+.tok { transition: transform .8s cubic-bezier(.5,0,.2,1); }
+.fade { transition: opacity .4s; }
+.halo { fill: none; stroke-width: 6; transition: stroke .6s; }
+.lever { transition: transform .7s cubic-bezier(.5,0,.2,1), stroke .4s; stroke-width: 7; stroke-linecap: round; }
+.cardbg { fill: var(--card); stroke: var(--line); stroke-width: 2; }
+.word { font-size: 13px; }
+.tag { font-size: 11px; }
+.pupil { transform-box: fill-box; transform-origin: center; }
+.pupil.think { animation: pulse .8s ease-in-out infinite; }
+.leg .ring { fill: none; stroke: var(--accent); stroke-width: 2.5; opacity: 0; transition: opacity .3s; }
+.leg.cur .ring { opacity: 1; }
 </style></head>
-<body><main>
-  <div class="grid" id="grid"></div>
-</main>
+<body><main id="app"></main>
+<script src="common.js"></script>
 <script>
-const V = ["v1-rooms", "v2-radar", "v3-pipeline", "v4-labyrinth", "v5-dial", "v6-network", "v7-firewall"];
-document.getElementById("grid").innerHTML = V.map((v, i) => `
-  <div class="tile"><span class="num">${i + 1}</span>
-    <div class="frame"><iframe src="/${v}.html?embed=1&auto=skilled&loop=1" title="Version ${i + 1}"></iframe></div>
-    <a href="/${v}.html" aria-label="Open version ${i + 1} full size"></a></div>`).join("");
+const Y = 240;
+const P = { v: [70, Y], a: [200, Y], b: [300, Y], c: [395, Y],
+            web: [600, 215], files: [710, 175], db: [745, 285], vault: [870, 215],
+            r1: [600, 390], r2: [720, 435], r3: [840, 390] };
+const FAKE = ["web", "files", "db", "vault"], REAL = ["r1", "r2", "r3"];
+const deg = to => Math.atan2(P[to][1] - P.c[1], P[to][0] - P.c[0]) * 180 / Math.PI;
+const WORDS = { terminal: "command", download: "download", secretfile: "passwords", wrongpass: "guess password", login: "log in" };
+const word = s => WORDS[s.icon] || (s.icon === "dbwrite" ? "change " : "read ") + s.tag;
+let S;
+
+/* ---------- pictures ---------- */
+function icon(name, parent, s = 1) {
+  const g = el("g", { transform: `scale(${s})` }, parent);
+  const p = (t, a, c = "ic") => el(t, { ...a, class: c }, g);
+  const cyl = () => { p("ellipse", { cx: 0, cy: -9, rx: 11, ry: 4 }); p("path", { d: "M-11 -9 V9 a11 4 0 0 0 22 0 V-9" }); p("path", { d: "M-11 0 a11 4 0 0 0 22 0" }); };
+  const lock = c => { p("rect", { x: -10, y: -1, width: 20, height: 15, rx: 3 }, c); p("path", { d: "M-6 -1 V-6 a6 6 0 0 1 12 0 V-1" }, c); };
+  switch (name) {
+    // what a visitor does
+    case "terminal": p("rect", { x: -16, y: -12, width: 32, height: 24, rx: 5 }); p("path", { d: "M-8 -4 L-2 1 L-8 6" }); p("path", { d: "M3 6 H10" }); break;
+    case "download": p("path", { d: "M0 -14 V4" }); p("path", { d: "M-8 -3 L0 5 L8 -3" }); p("path", { d: "M-12 12 H12" }); break;
+    case "secretfile": p("path", { d: "M-10 -15 H3 L11 -7 V15 H-10 Z" }); p("path", { d: "M3 -15 V-7 H11" }); p("circle", { cx: 0, cy: 3, r: 3.5 }, "ic red"); p("path", { d: "M0 6.5 V11" }, "ic red"); break;
+    case "wrongpass": lock("ic"); p("path", { d: "M5 -16 L15 -6 M15 -16 L5 -6" }, "ic red"); break;
+    case "login": p("rect", { x: -10, y: -1, width: 20, height: 15, rx: 3 }, "ic green"); p("path", { d: "M-6 -1 V-6 a6 6 0 0 1 11 -3" }, "ic green"); break;
+    case "dbread": cyl(); p("circle", { cx: 10, cy: 9, r: 5 }, "ic acc"); p("path", { d: "M14 13 L18 17" }, "ic acc"); break;
+    case "dbwrite": cyl(); p("path", { d: "M5 15 L15 5 L18 8 L8 18 Z" }, "ic acc"); break;
+    // what the AI does about it
+    case "OBSERVE": p("ellipse", { cx: 0, cy: 0, rx: 16, ry: 9 }); el("circle", { cx: 0, cy: 0, r: 4.5, fill: css("--accent") }, g); break;
+    case "DEEPEN": p("path", { d: "M-14 -10 L-4 0 L-14 10" }); p("path", { d: "M2 -10 L12 0 L2 10" }); break;
+    case "LURE": p("circle", { cx: -8, cy: 0, r: 6 }, "ic gold"); p("path", { d: "M-2 0 H14 M10 0 V6 M14 0 V5" }, "ic gold"); break;
+    case "SLOW": p("path", { d: "M-9 -14 H9 L0 0 L9 14 H-9 L0 0 Z" }); break;
+    case "CONTAIN": lock("ic red"); break;
+  }
+  return g;
+}
+
+// A small pill: picture + one keyword. Replaced by the next one, never stacked.
+function chip(parent, s, tick) {
+  const g = el("g", { class: "fade", opacity: 0 }, parent);
+  el("rect", { x: -78, y: -17, width: 156, height: 34, rx: 10, class: "cardbg" }, g);
+  icon(s.icon, el("g", { transform: "translate(-56 0)" }, g), .62);
+  el("text", { x: -36, y: 4, class: "word" }, g, word(s)).style.textAnchor = "start";
+  if (tick) { el("circle", { cx: 64, cy: 0, r: 8, fill: css("--ok") }, g); el("path", { d: "M60 0 L63 3 L69 -4", fill: "none", stroke: "#fff", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round" }, g); }
+  return g;
+}
+const show = g => { void g.getBoundingClientRect(); g.setAttribute("opacity", 1); };
+const hide = g => { g.setAttribute("opacity", 0); setTimeout(() => g.remove(), 450); };
+
+// the visitor's current action, above them
+function showAction(s, tick) {
+  if (S.chip) hide(S.chip);
+  S.chip = chip(S.tok, s, tick);
+  S.chip.setAttribute("transform", "translate(0 -36)");
+  show(S.chip);
+}
+// the AI's current move, below the visitor, and lit in the legend
+function showMove(k) {
+  if (S.move) hide(S.move);
+  S.move = el("g", { class: "fade", opacity: 0, transform: "translate(0 40)" }, S.tok);
+  el("circle", { r: 18, class: "cardbg" }, S.move); icon(k, S.move, .65);
+  show(S.move);
+  Object.entries(S.leg).forEach(([n, g]) => g.classList.toggle("cur", n === k));
+}
+
+/* ---------- scene ---------- */
+function build() {
+  svg.innerHTML = "";
+  S = { nodes: {}, idx: 0, leg: {}, chip: null, move: null };
+  const line = (a, b, cls) => el("line", { x1: P[a][0], y1: P[a][1], x2: P[b][0], y2: P[b][1], class: cls });
+
+  S.eFake = line("c", "web", "edge fake");
+  S.eReal = line("c", "r1", "edge real");
+  line("web", "files", "edge fake"); line("files", "db", "edge fake"); line("db", "vault", "edge fake"); line("web", "db", "edge fake");
+  line("r1", "r2", "edge real"); line("r2", "r3", "edge real"); line("r1", "r3", "edge real");
+  FAKE.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node fake" }); });
+  REAL.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 24, class: "node" }); });
+  el("text", { x: 800, y: 335 }, svg, "Fake network");
+  el("text", { x: 720, y: 485 }, svg, "Real network");
+
+  // visitor (identity unknown until the AI decides)
+  S.pr = el("circle", { cx: P.v[0], cy: P.v[1], r: 26, fill: "none", stroke: css("--mute"), "stroke-width": 3 });
+  S.pf = el("g", { fill: css("--mute") });
+  el("circle", { cx: P.v[0], cy: P.v[1] - 7, r: 7 }, S.pf);
+  el("path", { d: `M${P.v[0] - 15} ${P.v[1] + 15} Q${P.v[0]} ${P.v[1] - 4} ${P.v[0] + 15} ${P.v[1] + 15}` }, S.pf);
+  S.vl = el("text", { x: P.v[0], y: P.v[1] + 56 }, svg, "Visitor");
+
+  // firewall: Look (reads the request) -> AI decides -> Route switch
+  el("rect", { x: 152, y: 188, width: 288, height: 124, rx: 18, class: "fw" });
+  el("text", { x: 296, y: 338 }, svg, "Firewall");
+  el("line", { x1: P.a[0] + 30, y1: Y, x2: P.b[0] - 36, y2: Y, stroke: css("--line"), "stroke-width": 3 });
+  el("line", { x1: P.b[0] + 36, y1: Y, x2: P.c[0] - 8, y2: Y, stroke: css("--line"), "stroke-width": 3 });
+  S.stA = el("circle", { cx: P.a[0], cy: Y, r: 30, class: "stage" });
+  el("circle", { cx: P.a[0] - 3, cy: Y - 3, r: 9, class: "ic" });
+  el("path", { d: `M${P.a[0] + 4} ${Y + 4} L${P.a[0] + 12} ${Y + 12}`, class: "ic" });
+  S.halo = el("circle", { cx: P.b[0], cy: Y, r: 45, class: "halo", stroke: css("--line"), opacity: 0 });
+  S.stB = el("circle", { cx: P.b[0], cy: Y, r: 36, class: "stage" });
+  el("ellipse", { cx: P.b[0], cy: Y, rx: 24, ry: 14, class: "ic" });
+  S.pupil = el("circle", { cx: P.b[0], cy: Y, r: 7, fill: css("--accent"), class: "pupil" });
+  S.lever = el("line", { x1: P.c[0], y1: Y, x2: P.c[0] + 42, y2: Y, stroke: css("--mute"), class: "lever" });
+  S.lever.style.transformOrigin = `${P.c[0]}px ${Y}px`;
+  el("circle", { cx: P.c[0], cy: Y, r: 9, fill: css("--ink") });
+  el("text", { x: P.a[0], y: 304 }, svg, "Look");
+  el("text", { x: P.b[0], y: 304 }, svg, "AI decides");
+  el("text", { x: P.c[0], y: 304 }, svg, "Route");
+  S.mark = el("g", { opacity: 0 });
+
+  // legend: what each AI move picture means
+  el("text", { x: 40, y: 410 }, svg, "AI moves");
+  [["OBSERVE", "watch"], ["DEEPEN", "go deeper"], ["LURE", "bait"], ["SLOW", "slow down"], ["CONTAIN", "lock out"]].forEach(([k, label], i) => {
+    const g = el("g", { class: "leg", transform: `translate(${70 + i * 88} 448)` });
+    el("circle", { r: 24, class: "ring" }, g);
+    icon(k, g, .85);
+    el("text", { x: 0, y: 38, class: "tag" }, g, label);
+    S.leg[k] = g;
+  });
+
+  S.tok = el("g", { class: "tok" });
+  S.tc = el("circle", { r: 12, fill: css("--mute"), stroke: css("--card"), "stroke-width": 3 }, S.tok);
+  S.tok.style.transition = "none"; S.tok.style.transform = `translate(${P.v[0]}px, ${P.v[1]}px)`;
+}
+
+const moveTo = n => { S.tok.style.transition = ""; S.tok.style.transform = `translate(${P[n][0]}px, ${P[n][1]}px)`; };
+
+const KINDS = {
+  normal:   { col: "--ok",   cls: "okv",   who: "Staff member", sym: "M-9 0 L-2 9 L10 -9" },
+  insider:  { col: "--gold", cls: "warnv", who: "Staff member", sym: "M0 -9 V2 M0 9 V9.5" },
+  attacker: { col: "--bad",  cls: "badv",  who: "Outsider",     sym: "M-8 -8 L8 8 M8 -8 L-8 8" },
+};
+
+async function throughFirewall(kind, first) {
+  const K = KINDS[kind], col = css(K.col), good = kind === "normal";
+  await sleep(500);
+  // LOOK: the firewall reads what the visitor is asking for
+  S.stA.classList.add("on"); moveTo("a");
+  const req = chip(svg, first); req.setAttribute("transform", `translate(${P.a[0]} 130)`);
+  await sleep(700); show(req); await sleep(1500); hide(req);
+  S.stA.classList.remove("on");
+  // AI DECIDES who this is
+  S.stB.classList.add("on"); S.pupil.classList.add("think"); moveTo("b"); await sleep(1500);
+  S.pupil.classList.remove("think");
+  S.stB.classList.remove("on"); S.stB.classList.add(K.cls); S.stA.classList.add(K.cls);
+  S.tc.setAttribute("fill", col); S.pr.setAttribute("stroke", col); S.pf.setAttribute("fill", col);
+  S.vl.textContent = K.who;
+  el("circle", { cx: P.b[0] + 30, cy: Y - 32, r: 14, fill: col }, S.mark);
+  el("path", { d: K.sym, transform: `translate(${P.b[0] + 30} ${Y - 32}) scale(.7)`, fill: "none", stroke: "#fff", "stroke-width": 3.5, "stroke-linecap": "round", "stroke-linejoin": "round" }, S.mark);
+  S.mark.setAttribute("opacity", 1);
+  await sleep(1200);
+  // ROUTE: the switch swings to the chosen network
+  moveTo("c"); await sleep(700);
+  const target = good ? "r1" : "web";
+  S.lever.setAttribute("stroke", col);
+  S.lever.style.transform = `rotate(${deg(target)}deg)`;
+  (good ? S.eReal : S.eFake).classList.add("pick");
+  (good ? S.eFake : S.eReal).classList.add("dim");
+  await sleep(900);
+}
+
+async function play(data, name) {
+  const kind = name === "normal" ? "normal" : name === "insider" ? "insider" : "attacker";
+  await throughFirewall(kind, data.steps[0]);
+
+  if (kind === "normal") {
+    for (const [i, s] of data.steps.entries()) {
+      const n = REAL[Math.min(i, REAL.length - 1)];
+      moveTo(n); S.nodes[n].classList.add("okn");
+      $("cap").textContent = s.caption;
+      await sleep(700); showAction(s, true);                    // tick = allowed
+      await sleep(1700);
+    }
+    showResult("ok", "Normal visitor → real network",
+      "They only asked for things they are allowed to see, so the firewall let them through to the real network.");
+    $("cap").textContent = "Try another visitor →";
+    return;
+  }
+
+  moveTo("web"); S.nodes.web.classList.add("hit"); await sleep(1000);
+  for (const s of data.steps) {
+    $("cap").textContent = s.caption;
+    showAction(s); await sleep(1300);
+    const th = threat(s);
+    S.halo.setAttribute("opacity", 1); S.halo.setAttribute("stroke", threatColor(th));
+    showMove(s.executed);
+    if (s.executed === "DEEPEN" && S.idx < FAKE.length - 1) { S.idx++; const n = FAKE[S.idx]; moveTo(n); S.nodes[n].classList.add("hit"); }
+    if (s.executed === "LURE") { const [x, y] = P[FAKE[S.idx]]; icon("LURE", el("g", { transform: `translate(${x + 34} ${y + 30})` }), .9); }
+    await sleep(1500);
+    if (s.contained) {
+      FAKE.forEach(n => S.nodes[n].classList.add("caught"));
+      S.eFake.setAttribute("class", "edge cut");
+      S.tc.setAttribute("fill", css("--mute"));
+      const lk = el("g", {}, S.tok);                            // the lock closes over the attacker
+      el("circle", { r: 20, class: "cardbg" }, lk); icon("CONTAIN", lk, .8);
+      break;
+    }
+  }
+  const caught = data.outcome === "contained";
+  if (kind === "insider") {
+    showResult("warn", caught ? "Employee went where they should not → fake network, then locked out"
+                              : "Employee reached for data that is not theirs → moved to the fake network",
+      "They work here, but they asked for things outside their access. The firewall sent them to the fake network, where the AI watches and nothing real can be touched.");
+  } else if (caught) {
+    showResult("bad", "Attacker caught in the fake network", "The AI locked them out. The real network was never touched.");
+  } else {
+    showResult("bad", "Beginner stuck in the fake network",
+      "Nothing dangerous happened, so the AI just kept watching. The real network was never touched.");
+  }
+  $("cap").textContent = "Try another visitor →";
+}
+
+mount({ viewBox: "0 0 960 500", build, play,
+  buttons: [{ name: "normal", label: "Normal person" }, { name: "insider", label: "Snooping employee" },
+            { name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }] });
 </script></body></html>

@@ -1,9 +1,8 @@
-// Shared helpers for every visualization variant.
+// Small helpers for the LabyrinthAI overview page.
 const NS = "http://www.w3.org/2000/svg";
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const WORD = { OBSERVE: "WATCHING", DEEPEN: "OPEN NEW ROOM", LURE: "LEAVE BAIT", SLOW: "SLOW DOWN", CONTAIN: "LOCKED OUT" };
 let svg;
 
 function el(tag, attrs = {}, parent = svg, text) {
@@ -14,55 +13,11 @@ function el(tag, attrs = {}, parent = svg, text) {
   return e;
 }
 
-// 0..1 danger level derived from the Maze state the real code computed.
+// 0..1 danger level from the Maze state the real code computed.
 function threat(s) {
   return Math.min(1, ((s.state.exposure + s.state.alert + s.state.progress + s.state.intel * 0.5) / 8.5) * 1.15);
 }
 const threatColor = t => (t > .66 ? css("--bad") : t > .33 ? css("--gold") : css("--ok"));
-
-function setButtons(disabled) { document.querySelectorAll("button").forEach(b => b.disabled = disabled); }
-
-/**
- * mount({ viewBox, build(), play(data, name), buttons, order })
- * buttons: [{ name, label }] shown under the scene (default: skilled attacker + beginner)
- * order:   scenario names replayed in sequence when ?loop is set
- */
-function mount({ viewBox = "0 0 960 440", build, play, buttons, order, withResult = false }) {
-  const q = new URLSearchParams(location.search);
-  if (q.has("embed")) document.body.classList.add("embed");
-  buttons = buttons || [{ name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }];
-  order = order || ["skilled", "novice"];
-  $("app").innerHTML = `
-    <div class="top"><b>LabyrinthAI</b><a href="/">← all versions</a></div>
-    <div class="scene"><svg id="svg" viewBox="${viewBox}" role="img" aria-label="LabyrinthAI animation"></svg></div>
-    ${withResult ? '<div class="result" id="result" hidden></div>' : ""}
-    <div class="bar">
-      <div class="caption" id="cap">Pick a visitor →</div>
-      <div class="controls">${buttons.map((b, i) => `<button data-n="${b.name}" class="${i ? "alt" : ""}">${b.label}</button>`).join("")}</div>
-    </div>`;
-  svg = $("svg");
-  let running = false, idx = 0;
-  async function run(name) {
-    if (running) return;
-    running = true; setButtons(true);
-    if ($("result")) $("result").hidden = true;
-    build();
-    $("cap").textContent = "…";
-    try {
-      const data = await (await fetch("/api/run?scenario=" + name)).json();
-      await play(data, name);
-    } catch (e) { $("cap").textContent = "Server not reachable."; }
-    setButtons(false); running = false;
-    if (q.has("loop")) {  // keep replaying in sequence (used by the side-by-side wall)
-      await sleep(2500);
-      idx = (idx + 1) % order.length;
-      run(order[idx]);
-    }
-  }
-  build();
-  document.querySelectorAll("button").forEach(b => b.onclick = () => run(b.dataset.n));
-  if (q.get("auto")) { idx = Math.max(0, order.indexOf(q.get("auto"))); run(q.get("auto")); }
-}
 
 /** Big end-of-run banner. kind: "ok" | "warn" | "bad". */
 function showResult(kind, title, sub) {
@@ -72,6 +27,32 @@ function showResult(kind, title, sub) {
   r.hidden = false;
 }
 
-function endCaption(data, caught) {
-  $("cap").textContent = data.outcome === "contained" ? caught : "Harmless. The AI just kept watching.";
+/** mount({ viewBox, buttons: [{name,label}], build(), play(data, name) }) draws the page and wires the buttons. */
+function mount({ viewBox, buttons, build, play }) {
+  $("app").innerHTML = `
+    <div class="top"><b>LabyrinthAI</b></div>
+    <div class="scene"><svg id="svg" viewBox="${viewBox}" role="img" aria-label="LabyrinthAI animation"></svg></div>
+    <div class="result" id="result" hidden></div>
+    <div class="bar">
+      <div class="caption" id="cap">Pick a visitor →</div>
+      <div class="controls">${buttons.map((b, i) => `<button data-n="${b.name}" class="${i ? "alt" : ""}">${b.label}</button>`).join("")}</div>
+    </div>`;
+  svg = $("svg");
+  let running = false;
+  const setButtons = off => document.querySelectorAll("button").forEach(b => b.disabled = off);
+  async function run(name) {
+    if (running) return;
+    running = true; setButtons(true);
+    $("result").hidden = true;
+    build();
+    $("cap").textContent = "…";
+    try {
+      await play(await (await fetch("/api/run?scenario=" + name)).json(), name);
+    } catch (e) { $("cap").textContent = "Server not reachable."; }
+    setButtons(false); running = false;
+  }
+  build();
+  document.querySelectorAll("button").forEach(b => b.onclick = () => run(b.dataset.n));
+  const auto = new URLSearchParams(location.search).get("auto");   // e.g. /?auto=skilled starts a run on load
+  if (auto) run(auto);
 }
