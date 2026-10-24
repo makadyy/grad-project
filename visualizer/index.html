@@ -19,7 +19,7 @@ main { max-width: none; padding: 12px; }
   <div class="grid" id="grid"></div>
 </main>
 <script>
-const V = ["v1-rooms", "v2-radar", "v3-pipeline", "v4-labyrinth", "v5-dial", "v6-network"];
+const V = ["v1-rooms", "v2-radar", "v3-pipeline", "v4-labyrinth", "v5-dial", "v6-network", "v7-firewall"];
 document.getElementById("grid").innerHTML = V.map((v, i) => `
   <div class="tile"><span class="num">${i + 1}</span>
     <div class="frame"><iframe src="/${v}.html?embed=1&auto=skilled&loop=1" title="Version ${i + 1}"></iframe></div>

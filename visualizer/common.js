@@ -22,20 +22,25 @@ const threatColor = t => (t > .66 ? css("--bad") : t > .33 ? css("--gold") : css
 
 function setButtons(disabled) { document.querySelectorAll("button").forEach(b => b.disabled = disabled); }
 
-/** mount({ viewBox, build(), play(data) }) - draws the page chrome and wires the buttons. */
-function mount({ viewBox = "0 0 960 440", build, play }) {
+/**
+ * mount({ viewBox, build(), play(data, name), buttons, order })
+ * buttons: [{ name, label }] shown under the scene (default: skilled attacker + beginner)
+ * order:   scenario names replayed in sequence when ?loop is set
+ */
+function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
   const q = new URLSearchParams(location.search);
   if (q.has("embed")) document.body.classList.add("embed");
-  const app = $("app");
-  app.innerHTML = `
+  buttons = buttons || [{ name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }];
+  order = order || ["skilled", "novice"];
+  $("app").innerHTML = `
     <div class="top"><b>LabyrinthAI</b><a href="/">← all versions</a></div>
     <div class="scene"><svg id="svg" viewBox="${viewBox}" role="img" aria-label="LabyrinthAI animation"></svg></div>
     <div class="bar">
-      <div class="caption" id="cap">Pick an attacker →</div>
-      <div class="controls"><button id="b-skilled">Skilled attacker</button><button id="b-novice" class="alt">Beginner</button></div>
+      <div class="caption" id="cap">Pick a visitor →</div>
+      <div class="controls">${buttons.map((b, i) => `<button data-n="${b.name}" class="${i ? "alt" : ""}">${b.label}</button>`).join("")}</div>
     </div>`;
   svg = $("svg");
-  let running = false;
+  let running = false, idx = 0;
   async function run(name) {
     if (running) return;
     running = true; setButtons(true);
@@ -43,18 +48,18 @@ function mount({ viewBox = "0 0 960 440", build, play }) {
     $("cap").textContent = "…";
     try {
       const data = await (await fetch("/api/run?scenario=" + name)).json();
-      await play(data);
+      await play(data, name);
     } catch (e) { $("cap").textContent = "Server not reachable."; }
     setButtons(false); running = false;
-    if (q.has("loop")) {  // keep replaying, alternating attackers (used by the side-by-side wall)
+    if (q.has("loop")) {  // keep replaying in sequence (used by the side-by-side wall)
       await sleep(2500);
-      run(name === "skilled" ? "novice" : "skilled");
+      idx = (idx + 1) % order.length;
+      run(order[idx]);
     }
   }
   build();
-  $("b-skilled").onclick = () => run("skilled");
-  $("b-novice").onclick = () => run("novice");
-  if (q.get("auto")) run(q.get("auto"));
+  document.querySelectorAll("button").forEach(b => b.onclick = () => run(b.dataset.n));
+  if (q.get("auto")) { idx = Math.max(0, order.indexOf(q.get("auto"))); run(q.get("auto")); }
 }
 
 function endCaption(data, caught) {

