@@ -123,8 +123,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         url = urlparse(self.path)
-        if url.path in ("/", "/index.html"):
-            self._send(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+        static = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css"}
+        name = "index.html" if url.path == "/" else url.path.lstrip("/")
+        if "/" not in name and (HERE / name).is_file() and Path(name).suffix in static:
+            self._send(200, (HERE / name).read_bytes(), static[Path(name).suffix])
         elif url.path == "/api/overview":
             self._send(200, json.dumps(overview()).encode(), "application/json")
         elif url.path == "/api/run":

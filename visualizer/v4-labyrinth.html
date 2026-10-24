@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabyrinthAI Labyrinth</title>
+<link rel="stylesheet" href="common.css">
+<style>
+.cell { fill: var(--dim); stroke: var(--line); stroke-width: 1.5; transition: all .5s; opacity: .7; stroke-dasharray: 4 5; }
+.cell.deco { opacity: .35; }
+.cell.open { opacity: 1; fill: var(--room); stroke: var(--accent); stroke-width: 2; stroke-dasharray: none; }
+.cell.caught { fill: color-mix(in srgb, var(--bad) 18%, var(--room)); stroke: var(--bad); opacity: 1; }
+.tok { transition: transform .7s cubic-bezier(.5,0,.2,1); }
+.wall { fill: var(--bad); transform-box: fill-box; transform-origin: top; animation: drop .4s ease-out both; }
+@keyframes drop { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.halo { fill: none; stroke-width: 6; transition: stroke .6s; }
+</style></head>
+<body><main id="app"></main>
+<script src="common.js"></script>
+<script>
+const CELL = 64, OX = 170, OY = 50;
+const ROUTE = [[0,2],[1,2],[2,2],[2,1],[3,1],[4,1],[4,2],[4,3],[5,3],[6,3],[6,2],[7,2],[8,2]];
+const DECO = [[1,3],[1,4],[2,3],[3,3],[3,0],[5,1],[5,2],[6,1],[7,3],[7,1],[8,3],[8,1],[2,0]];
+const cx = c => OX + c[0] * CELL + CELL / 2, cy = c => OY + c[1] * CELL + CELL / 2;
+let S;
+
+function build() {
+  svg.innerHTML = "";
+  S = { cells: [], idx: 0, shown: 0 };
+  DECO.forEach(c => el("rect", { x: OX + c[0] * CELL + 6, y: OY + c[1] * CELL + 6, width: CELL - 12, height: CELL - 12, rx: 10, class: "cell deco" }));
+  ROUTE.forEach((c, i) => {
+    if (i) el("line", { x1: cx(ROUTE[i - 1]), y1: cy(ROUTE[i - 1]), x2: cx(c), y2: cy(c), stroke: css("--line"), "stroke-width": 4 });
+    S.cells.push(el("rect", { x: OX + c[0] * CELL + 6, y: OY + c[1] * CELL + 6, width: CELL - 12, height: CELL - 12, rx: 10, class: "cell" }));
+  });
+  // vault star at the end
+  el("path", { d: `M${cx(ROUTE.at(-1))} ${cy(ROUTE.at(-1)) - 14} l4 10 11 1 -8 7 3 11 -10 -6 -10 6 3 -11 -8 -7 11 -1z`, fill: css("--gold") });
+  el("text", { x: 70, y: 235 }, svg, "Attacker");
+  el("text", { x: OX + 4.5 * CELL, y: OY - 14 }, svg, "Fake network");
+  S.halo = el("circle", { cx: 880, cy: 80, r: 34, class: "halo", stroke: css("--ok") });
+  el("circle", { cx: 880, cy: 80, r: 28, fill: css("--card") });
+  el("ellipse", { cx: 880, cy: 80, rx: 18, ry: 10, fill: "none", stroke: css("--ink"), "stroke-width": 2.5 });
+  el("circle", { cx: 880, cy: 80, r: 5, fill: css("--accent") });
+  el("text", { x: 880, y: 138 }, svg, "AI");
+  S.badge = el("text", { x: 880, y: 190, class: "big", fill: css("--mute") }, svg, "");
+  S.bait = el("circle", { r: 8, fill: css("--gold"), opacity: 0 });
+  S.tok = el("g", { class: "tok" });
+  S.tc = el("circle", { r: 12, fill: css("--bad"), stroke: css("--card"), "stroke-width": 3 }, S.tok);
+  S.tok.style.transition = "none"; S.tok.style.transform = `translate(80px, ${cy(ROUTE[0])}px)`;
+}
+
+function open(i) { S.cells[i].classList.add("open"); }
+function move(i) { S.tok.style.transition = ""; S.tok.style.transform = `translate(${cx(ROUTE[i])}px, ${cy(ROUTE[i])}px)`; }
+
+async function play(data) {
+  open(0); open(1); move(0); await sleep(900);
+  for (const s of data.steps) {
+    $("cap").textContent = s.caption;
+    const th = threat(s);
+    S.halo.setAttribute("stroke", threatColor(th));
+    S.badge.textContent = WORD[s.executed]; S.badge.setAttribute("fill", s.contained ? css("--bad") : css("--accent"));
+    S.bait.setAttribute("opacity", 0);
+    if (s.executed === "DEEPEN") {
+      const next = Math.min(ROUTE.length - 1, S.idx + 2);
+      open(Math.min(ROUTE.length - 1, next + 1));
+      for (let k = S.idx + 1; k <= next; k++) { S.idx = k; open(k); move(k); await sleep(450); }
+    }
+    if (s.executed === "LURE") {
+      const n = ROUTE[Math.min(ROUTE.length - 1, S.idx + 1)];
+      S.bait.setAttribute("cx", cx(n)); S.bait.setAttribute("cy", cy(n)); S.bait.setAttribute("opacity", 1);
+    }
+    if (s.contained) {
+      await sleep(500);
+      const c = ROUTE[S.idx], x = OX + c[0] * CELL;
+      S.cells[S.idx].classList.add("caught");
+      el("rect", { x: x - 2, y: OY + c[1] * CELL - 2, width: CELL + 4, height: 8, rx: 3, class: "wall" });
+      el("rect", { x: x - 2, y: OY + (c[1] + 1) * CELL - 6, width: CELL + 4, height: 8, rx: 3, class: "wall" });
+      el("rect", { x: x - 2, y: OY + c[1] * CELL - 2, width: 8, height: CELL + 4, rx: 3, class: "wall" });
+      el("rect", { x: x + CELL - 6, y: OY + c[1] * CELL - 2, width: 8, height: CELL + 4, rx: 3, class: "wall" });
+      S.tc.setAttribute("fill", css("--mute"));
+      break;
+    }
+    await sleep(1200);
+  }
+  endCaption(data, "Trapped. The attacker never reached the vault.");
+}
+mount({ build, play, viewBox: "0 0 960 340" });
+</script></body></html>

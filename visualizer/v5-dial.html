@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabyrinthAI Dial</title>
+<link rel="stylesheet" href="common.css">
+<style>
+.needle { transition: transform .9s cubic-bezier(.4,1.4,.5,1); transform-origin: 270px 300px; }
+.ic { fill: none; stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.iconbox { transition: opacity .3s; }
+.disc { fill: var(--room); stroke: var(--accent); stroke-width: 4; transition: stroke .4s, fill .4s; }
+.dot { transition: fill .4s; animation: pop .35s; transform-box: fill-box; transform-origin: center; }
+.block { fill: var(--room); stroke: var(--accent); stroke-width: 2; animation: pop .35s; transform-box: fill-box; transform-origin: center; }
+.block.ok { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 18%, var(--room)); }
+</style></head>
+<body><main id="app"></main>
+<script src="common.js"></script>
+<script>
+const GC = { x: 270, y: 300 }, GR = 190;
+let S;
+const arc = (a0, a1, r) => {
+  const p = a => [GC.x + r * Math.cos(Math.PI * (1 + a)), GC.y + r * Math.sin(Math.PI * (1 + a))];
+  const [x0, y0] = p(a0), [x1, y1] = p(a1);
+  return `M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}`;
+};
+
+const ICONS = {
+  OBSERVE: g => { el("ellipse", { cx: 0, cy: 0, rx: 46, ry: 26, class: "ic" }, g); el("circle", { cx: 0, cy: 0, r: 12, class: "ic" }, g); },
+  DEEPEN: g => { el("path", { d: "M-34 -30 L0 0 L-34 30 M4 -30 L38 0 L4 30", class: "ic" }, g); },
+  LURE: g => { el("circle", { cx: -22, cy: 0, r: 14, class: "ic", stroke: css("--gold") }, g); el("path", { d: "M-8 0 H40 M26 0 V14 M38 0 V12", class: "ic", stroke: css("--gold") }, g); },
+  SLOW: g => { el("path", { d: "M-24 -36 H24 L0 0 L24 36 H-24 L0 0 Z", class: "ic" }, g); },
+  CONTAIN: g => { el("rect", { x: -28, y: -6, width: 56, height: 42, rx: 8, class: "ic", stroke: css("--bad") }, g); el("path", { d: "M-16 -6 V-18 a16 16 0 0 1 32 0 V-6", class: "ic", stroke: css("--bad") }, g); },
+};
+
+function build() {
+  svg.innerHTML = "";
+  S = { n: 0 };
+  [[0, .33, "--ok"], [.33, .66, "--gold"], [.66, 1, "--bad"]].forEach(([a, b, c]) =>
+    el("path", { d: arc(a, b, GR), fill: "none", stroke: css(c), "stroke-width": 22, opacity: .85, "stroke-linecap": "butt" }));
+  el("text", { x: GC.x, y: GC.y + 44 }, svg, "Threat");
+  S.needle = el("g", { class: "needle" });
+  el("line", { x1: GC.x, y1: GC.y, x2: GC.x, y2: GC.y - GR + 10, stroke: css("--ink"), "stroke-width": 5, "stroke-linecap": "round" }, S.needle);
+  S.needle.style.transform = "rotate(-90deg)";
+  el("circle", { cx: GC.x, cy: GC.y, r: 12, fill: css("--ink") });
+
+  S.disc = el("circle", { cx: 700, cy: 170, r: 90, class: "disc" });
+  S.icon = el("g", { class: "iconbox", transform: "translate(700 170)" });
+  S.word = el("text", { x: 700, y: 300, class: "big", fill: css("--mute") }, svg, "");
+  S.word.style.fontSize = "22px";
+
+  el("text", { x: 60, y: 392 }, svg, "Steps");
+  S.dotY = 388; S.blockY = 388;
+  S.caught = el("text", { x: 700, y: 60, class: "big", fill: css("--bad"), opacity: 0 }, svg, "CAUGHT");
+  S.caught.style.fontSize = "28px";
+}
+
+async function play(data) {
+  await sleep(500);
+  for (const s of data.steps) {
+    $("cap").textContent = s.caption;
+    const th = threat(s);
+    S.needle.style.transform = `rotate(${-90 + 180 * th}deg)`;
+    S.icon.innerHTML = ""; ICONS[s.executed](S.icon);
+    S.word.textContent = WORD[s.executed]; S.word.setAttribute("fill", s.contained ? css("--bad") : css("--accent"));
+    S.disc.setAttribute("stroke", s.contained ? css("--bad") : css("--accent"));
+    el("circle", { cx: 130 + S.n * 44, cy: S.dotY, r: 14, fill: threatColor(th), class: "dot" });
+    S.n++;
+    if (s.contained) { S.caught.setAttribute("opacity", 1); S.disc.setAttribute("fill", `color-mix(in srgb, ${css("--bad")} 18%, ${css("--room")})`); break; }
+    await sleep(1700);
+  }
+  endCaption(data, "Caught. The AI locked the attacker out.");
+}
+mount({ build, play, viewBox: "0 0 960 420" });
+</script></body></html>

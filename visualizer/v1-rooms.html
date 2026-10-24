@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabyrinthAI Rooms</title>
+<link rel="stylesheet" href="common.css">
+<style>
+.room { fill: var(--dim); stroke: var(--line); stroke-width: 2; stroke-dasharray: 5 5; transition: all .5s; }
+.room.open { fill: var(--room); stroke: var(--accent); stroke-dasharray: none; }
+.room.caught { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 12%, var(--room)); }
+.lbl.open { fill: var(--ink); font-weight: 600; }
+.token { transition: transform .9s cubic-bezier(.5,0,.2,1); }
+.beam { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 6 6; opacity: 0; transition: opacity .3s; }
+.beam.on { opacity: 1; animation: flow .5s linear infinite; }
+.door { transition: transform .6s cubic-bezier(.6,0,.3,1); }
+.pulse { animation: pulse 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.block { fill: var(--room); stroke: var(--accent); stroke-width: 2; animation: pop .35s; transform-box: fill-box; transform-origin: center; }
+.block.ok { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 18%, var(--room)); }
+.gauge-fill { transition: width .7s, fill .7s; }
+</style></head>
+<body><main id="app"></main>
+<script src="common.js"></script>
+<script>
+const ROOMS = ["Login", "Files", "Web", "Database", "Vault"];
+const RX = i => 190 + i * 110, RW = 90, RY = 150, RH = 100, CY = RY + RH / 2;
+const CX = i => RX(i) + RW / 2;
+const BRAIN = { x: 850, y: 190 };
+let S;
+
+function build() {
+  svg.innerHTML = "";
+  S = { rooms: [], labels: [], n: 0, chainY: 392 };
+  el("circle", { cx: 60, cy: CY, r: 24, fill: "none", stroke: css("--bad"), "stroke-width": 3 });
+  el("circle", { cx: 60, cy: CY - 6, r: 7, fill: css("--bad") });
+  el("path", { d: `M44 ${CY + 14} Q60 ${CY - 4} 76 ${CY + 14}`, fill: css("--bad") });
+  el("text", { x: 60, y: CY + 52 }, svg, "Attacker");
+
+  el("text", { x: 140, y: 112 }, svg, "Firewall");
+  el("rect", { x: 134, y: 120, width: 12, height: 60, rx: 3, fill: css("--mute") });
+  el("rect", { x: 134, y: 220, width: 12, height: 60, rx: 3, fill: css("--mute") });
+  S.door = el("rect", { x: 134, y: 180, width: 12, height: 40, rx: 3, fill: css("--bad"), opacity: 0, class: "door" });
+  S.door.style.transform = "translateY(-40px)";
+
+  el("text", { x: 470, y: 100 }, svg, "Fake network");
+  ROOMS.forEach((name, i) => {
+    if (i) el("line", { x1: RX(i - 1) + RW, y1: CY, x2: RX(i), y2: CY, stroke: css("--line"), "stroke-width": 3 });
+    S.rooms.push(el("rect", { x: RX(i), y: RY, width: RW, height: RH, rx: 14, class: "room" }));
+    S.labels.push(el("text", { x: CX(i), y: RY + RH + 22, class: "lbl" }, svg, name));
+  });
+  S.bait = el("g", { opacity: 0 });
+  el("circle", { cx: 0, cy: 0, r: 8, fill: css("--gold") }, S.bait);
+  el("rect", { x: 6, y: -2, width: 14, height: 4, fill: css("--gold") }, S.bait);
+  S.beam = el("line", { x1: 60, y1: CY - 30, x2: BRAIN.x - 54, y2: BRAIN.y, class: "beam" });
+  S.token = el("g", { class: "token" });
+  S.tc = el("circle", { r: 13, fill: css("--bad"), stroke: css("--card"), "stroke-width": 3 }, S.token);
+  S.token.style.transition = "none"; S.token.style.transform = `translate(60px, ${CY}px)`;
+
+  el("circle", { cx: BRAIN.x, cy: BRAIN.y, r: 54, fill: css("--room"), stroke: css("--accent"), "stroke-width": 3 });
+  el("ellipse", { cx: BRAIN.x, cy: BRAIN.y, rx: 32, ry: 18, fill: css("--card"), stroke: css("--ink"), "stroke-width": 2.5 });
+  S.pupil = el("circle", { cx: BRAIN.x, cy: BRAIN.y, r: 10, fill: css("--accent"), class: "pulse" });
+  el("text", { x: BRAIN.x, y: BRAIN.y + 82 }, svg, "AI");
+  S.badge = el("text", { x: BRAIN.x, y: 96, class: "big", fill: css("--mute") }, svg, "");
+  el("text", { x: BRAIN.x, y: 315 }, svg, "Threat");
+  el("rect", { x: BRAIN.x - 80, y: 325, width: 160, height: 14, rx: 7, fill: css("--dim") });
+  S.gauge = el("rect", { x: BRAIN.x - 80, y: 325, width: 0, height: 14, rx: 7, fill: css("--ok"), class: "gauge-fill" });
+  el("text", { x: 60, y: 392 }, svg, "Evidence");
+  S.caught = el("text", { x: 400, y: 56, class: "big", fill: css("--bad"), opacity: 0 }, svg, "CAUGHT");
+  S.caught.style.fontSize = "28px";
+}
+
+function moveToken(i) {
+  S.token.style.transition = ""; S.token.style.transform = `translate(${CX(i)}px, ${CY}px)`;
+  S.beam.setAttribute("x1", CX(i));
+}
+function openRoom(i) { S.rooms[i].classList.add("open"); S.labels[i].classList.add("open"); }
+function addBlock() {
+  const x = 190 + S.n * 40;
+  if (S.n) el("line", { x1: x - 12, y1: S.chainY - 5, x2: x, y2: S.chainY - 5, stroke: css("--line"), "stroke-width": 2 });
+  el("rect", { x, y: S.chainY - 19, width: 28, height: 28, rx: 6, class: "block" });
+  S.n++;
+}
+
+async function play(data) {
+  let depth = 0;
+  openRoom(0); moveToken(0); await sleep(1000);
+  for (const s of data.steps) {
+    $("cap").textContent = s.caption;
+    S.beam.classList.add("on"); await sleep(500);
+    const th = threat(s);
+    S.gauge.setAttribute("width", 160 * th); S.gauge.setAttribute("fill", threatColor(th));
+    S.badge.textContent = WORD[s.executed]; S.badge.setAttribute("fill", s.contained ? css("--bad") : css("--accent"));
+    S.bait.setAttribute("opacity", 0); await sleep(500);
+    S.beam.classList.remove("on");
+    if (s.executed === "DEEPEN" && depth < ROOMS.length - 1) { depth++; openRoom(depth); moveToken(depth); }
+    if (s.executed === "LURE") { S.bait.setAttribute("transform", `translate(${CX(depth) + 18}, ${CY + 28})`); S.bait.setAttribute("opacity", 1); }
+    addBlock();
+    if (s.contained) {
+      await sleep(600);
+      S.door.setAttribute("opacity", 1); S.door.style.transform = "translateY(0)";
+      S.rooms.forEach((r, k) => { if (k <= depth) r.classList.add("caught"); });
+      S.tc.setAttribute("fill", css("--mute")); S.pupil.setAttribute("fill", css("--bad")); S.caught.setAttribute("opacity", 1);
+      document.querySelectorAll(".block").forEach(b => b.classList.add("ok"));
+      break;
+    }
+    await sleep(900);
+  }
+  endCaption(data, "Caught. The AI locked the attacker out and kept the evidence.");
+}
+mount({ build, play });
+</script></body></html>

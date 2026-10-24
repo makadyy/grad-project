@@ -1,208 +1,25 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LabyrinthAI Overview</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LabyrinthAI Versions</title>
+<link rel="stylesheet" href="common.css">
 <style>
-:root {
-  --bg: #faf8f4; --card: #ffffff; --ink: #1f1d1a; --mute: #75706a; --line: #e6e1d8;
-  --accent: #c2410c; --accent-soft: #fdebdd; --ok: #15803d; --ok-soft: #dcf3e3; --warn: #b45309;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #161412; --card: #201d1a; --ink: #f2eee8; --mute: #a39d94; --line: #34302b;
-    --accent: #fb923c; --accent-soft: #3a2616; --ok: #4ade80; --ok-soft: #173223; --warn: #fbbf24;
-  }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 1120px; margin: 0 auto; padding: 40px 16px 64px; }
-h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -.01em; }
-.sub { color: var(--mute); margin: 0 0 32px; max-width: 640px; }
-
-.flow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; align-items: stretch; }
-.node { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-  padding: 14px 12px; margin-right: 18px; transition: border-color .25s, box-shadow .25s, background .25s; }
-.node:last-child { margin-right: 0; }
-.node:not(:last-child)::after { content: "→"; position: absolute; right: -18px; top: 50%;
-  transform: translateY(-50%); width: 18px; text-align: center; color: var(--mute); }
-.node.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--card); }
-.node.done { border-color: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
-.node h3 { margin: 0 0 4px; font-size: 15px; }
-.node p { margin: 0; font-size: 13px; color: var(--mute); line-height: 1.4; }
-.tag { display: inline-block; margin-top: 10px; font-size: 11px; padding: 1px 8px; border-radius: 99px;
-  border: 1px solid var(--line); color: var(--mute); }
-.tag.built { color: var(--ok); border-color: var(--ok); }
-
-.brain { margin: 20px 0 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
-.brain h2 { margin: 0 0 12px; font-size: 15px; }
-.parts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.part { border: 1px solid var(--line); border-radius: 10px; padding: 12px; transition: all .25s; }
-.part.on { border-color: var(--accent); background: var(--accent-soft); }
-.part b { display: block; font-size: 14px; }
-.part span { font-size: 13px; color: var(--mute); display: block; }
-.part em { font-style: normal; font-size: 12px; color: var(--ink); display: block; margin-top: 6px; min-height: 18px; }
-
-.live { margin-top: 28px; display: grid; grid-template-columns: 1fr 1.4fr; gap: 20px; align-items: start; }
-.controls { display: flex; gap: 10px; flex-wrap: wrap; }
-button { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--accent);
-  background: var(--accent); color: #fff; cursor: pointer; }
-button.alt { background: transparent; color: var(--accent); }
-button:disabled { opacity: .5; cursor: default; }
-.hint { color: var(--mute); font-size: 13px; margin: 10px 0 0; }
-.now { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-height: 210px; }
-.now .big { font-size: 18px; margin: 0 0 12px; }
-.row { display: flex; gap: 8px; align-items: center; margin: 6px 0; font-size: 14px; }
-.row .lbl { width: 76px; color: var(--mute); }
-.pips { display: flex; gap: 4px; }
-.pip { width: 22px; height: 8px; border-radius: 4px; background: var(--line); transition: background .3s; }
-.pip.f { background: var(--accent); }
-.decision { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); font-size: 15px; }
-.decision.contain { background: var(--ok-soft); }
-.small { font-size: 12px; color: var(--mute); word-break: break-all; margin-top: 8px; }
-.idle { color: var(--mute); }
-.story { display: grid; gap: 10px; }
-.mv { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; animation: in .3s; }
-.mv .l { display: grid; grid-template-columns: 92px 1fr; gap: 8px; margin: 2px 0; }
-.mv .l span:first-child { color: var(--mute); }
-.mv.last { border-color: var(--accent); }
-.mv.win { border-color: var(--ok); background: var(--ok-soft); }
-@keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-@media (max-width: 900px) {
-  .flow { grid-template-columns: 1fr; gap: 18px; }
-  .node { margin-right: 0; }
-  .node:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -20px; transform: translateX(-50%); }
-  .parts { grid-template-columns: 1fr 1fr; }
-  .live { grid-template-columns: 1fr; }
-}
-</style>
-</head>
-<body>
-<main>
-  <h1>LabyrinthAI</h1>
-  <p class="sub">Think of a thief breaking into a bank. Instead of the real bank, we let them into a <b>fake bank</b> with hidden cameras. An AI watches everything they do and decides how to react. If they turn out to be dangerous, it locks them out.</p>
-  <p class="sub"><b>Press a button at the bottom</b> and watch a fake attacker go through the system, one move at a time.</p>
-
-  <section class="flow" id="flow">
-    <div class="node" data-n="attacker"><h3>1. Attacker</h3><p>Breaks into the company network.</p><span class="tag">outside</span></div>
-    <div class="node" data-n="twin"><h3>2. Fake network</h3><p>A digital twin of the real one, full of decoy servers.</p><span class="tag">not in repo yet</span></div>
-    <div class="node" data-n="logs"><h3>3. Logging</h3><p>Every action is recorded and streamed out.</p><span class="tag">not in repo yet</span></div>
-    <div class="node" data-n="ai"><h3>4. AI brain</h3><p>Judges the attacker and picks a response.</p><span class="tag built">in repo</span></div>
-    <div class="node" data-n="contain"><h3>5. Containment</h3><p>Cuts the attacker off automatically.</p><span class="tag">not in repo yet</span></div>
-    <div class="node" data-n="proof"><h3>6. Evidence</h3><p>Tamper-proof record of what happened.</p><span class="tag">not in repo yet</span></div>
-    <div class="node" data-n="dash"><h3>7. Dashboard</h3><p>Analysts watch and see why.</p><span class="tag">not in repo yet</span></div>
-  </section>
-
-  <section class="brain">
-    <h2>Inside the AI brain</h2>
-    <div class="parts">
-      <div class="part" data-p="gate"><b>Gatekeeper</b><span>Is this traffic an attack?</span><em id="t-gate">&nbsp;</em></div>
-      <div class="part" data-p="prof"><b>Profiler</b><span>How skilled is the attacker?</span><em id="t-prof">&nbsp;</em></div>
-      <div class="part" data-p="maze"><b>Maze</b><span>What should we do next?</span><em id="t-maze">&nbsp;</em></div>
-      <div class="part" data-p="gen"><b>Fake data</b><span>Makes the decoys believable.</span><em id="t-gen">&nbsp;</em></div>
-    </div>
-  </section>
-
-  <section class="live">
-    <div>
-      <div class="controls">
-        <button id="b-skilled">Run skilled attacker</button>
-        <button id="b-novice" class="alt">Run beginner</button>
-      </div>
-      <p class="hint">Each run is computed live by the project's real Profiler and Maze code, not a recording.</p>
-    </div>
-    <div class="now" id="now"><p class="idle">Nothing running. Pick an attacker to start.</p></div>
-  </section>
+h1 { font-size: 22px; margin: 0 0 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
+.tile { position: relative; border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
+.frame { position: relative; aspect-ratio: 16 / 8; overflow: hidden; }
+.frame iframe { width: 200%; height: 200%; border: 0; transform: scale(.5); transform-origin: top left; pointer-events: none; }
+.tile a { position: absolute; inset: 0; z-index: 2; }
+.num { position: absolute; top: 10px; left: 10px; z-index: 3; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+</style></head>
+<body><main>
+  <h1>Pick a version</h1>
+  <div class="grid" id="grid"></div>
 </main>
-
 <script>
-const $ = (s, r = document) => r.querySelector(s);
-const nodes = Object.fromEntries([...document.querySelectorAll(".node")].map(n => [n.dataset.n, n]));
-const parts = Object.fromEntries([...document.querySelectorAll(".part")].map(n => [n.dataset.p, n]));
-const MEANING = {
-  OBSERVE: "Keep quietly watching",
-  DEEPEN: "Open a new fake room so they go further in",
-  LURE: "Leave fake bait for them to find",
-  SLOW: "Slow things down to waste their time",
-  CONTAIN: "Cut them off and lock the doors",
-};
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-let running = false;
-
-const PLAIN = {
-  OBSERVE: "Does nothing, just keeps watching quietly.",
-  DEEPEN: "Opens a new fake room so the attacker goes deeper into the trap.",
-  LURE: "Leaves fake bait (like a fake password file) for them to find.",
-  SLOW: "Slows things down so they waste time and we stay hidden.",
-  CONTAIN: "Locks the attacker out. Caught!",
-};
-function think(s) {
-  const f = s.features;
-  if (s.contained) return "This one is dangerous: they have been changing our data. Time to stop them.";
-  if (f.database_write_count > 0) return "They are changing data, so this is serious.";
-  if (f.suspicious_command_count >= 2) return "Several attacker-style commands. Clearly not a normal user.";
-  if (f.suspicious_command_count === 1) return "One suspicious command. Probably skilled, keep watching.";
-  if (f.portal_auth_failure_count > 0) return "Trying to guess a password. Getting more suspicious.";
-  return "Looks like a beginner so far. Nothing dangerous yet.";
-}
-function clearAll() { Object.values(nodes).forEach(n => n.classList.remove("on", "done")); Object.values(parts).forEach(p => p.classList.remove("on")); }
-function fmt(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n.toLocaleString(); }
-
-fetch("/api/overview").then(r => r.json()).then(o => {
-  if (o.gatekeeper) $("#t-gate").textContent = `Trained on ${fmt(o.gatekeeper.clean)} real network flows`;
-  $("#t-gen").textContent = `${o.genai.company}: ${o.genai.employees} fake staff, ${o.genai.facts} facts`;
-  $("#t-prof").textContent = "Counts 30 behaviors per session";
-  $("#t-maze").textContent = "5 possible moves, with a safety shield";
-}).catch(() => {});
-
-async function pulse(keys, ms = 380) {
-  for (const k of keys) { nodes[k].classList.add("on"); await sleep(ms); nodes[k].classList.remove("on"); }
-}
-
-async function run(name) {
-  if (running) return;
-  running = true;
-  document.querySelectorAll("button").forEach(b => b.disabled = true);
-  clearAll();
-  const now = $("#now");
-  now.innerHTML = '<p class="idle">Starting…</p>';
-  let data;
-  try { data = await (await fetch("/api/run?scenario=" + name)).json(); }
-  catch (e) { now.innerHTML = '<p class="idle">Server not reachable.</p>'; running = false; document.querySelectorAll("button").forEach(b => b.disabled = false); return; }
-
-  now.innerHTML = '<div class="story" id="story"></div>';
-  const story = $("#story");
-  for (const [i, s] of data.steps.entries()) {
-    story.querySelectorAll(".last").forEach(e => e.classList.remove("last"));
-    story.insertAdjacentHTML("beforeend", `<div class="mv last ${s.contained ? "win" : ""}">
-      <div class="l"><span>Attacker</span><span><b>${i + 1}.</b> ${s.caption}</span></div>
-      <div class="l"><span>AI thinks</span><span>${think(s)}</span></div>
-      <div class="l"><span>System</span><span><b>${PLAIN[s.executed]}</b></span></div></div>`);
-    story.lastElementChild.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    await pulse(["attacker", "twin", "logs"], 260);
-    nodes.ai.classList.add("on"); parts.prof.classList.add("on");
-    await sleep(380);
-    parts.prof.classList.remove("on"); parts.maze.classList.add("on");
-    await sleep(450);
-    parts.maze.classList.remove("on"); nodes.ai.classList.remove("on");
-    if (s.contained) {
-      await pulse(["contain", "proof", "dash"], 450);
-      Object.values(nodes).slice(1).forEach(n => n.classList.add("done"));
-      now.insertAdjacentHTML("beforeend", `<p class="small">Attacker caught and cut off. The whole session is saved as tamper-proof evidence.</p>`);
-      break;
-    }
-    nodes.dash.classList.add("on"); await sleep(150); nodes.dash.classList.remove("on");
-    await sleep(900);
-  }
-  if (data.outcome !== "contained") now.insertAdjacentHTML("beforeend", `<div class="small">The end. This attacker never did anything dangerous, so the AI just kept watching. No lock-out needed.</div>`);
-  document.querySelectorAll("button").forEach(b => b.disabled = false);
-  running = false;
-}
-$("#b-skilled").onclick = () => run("skilled");
-$("#b-novice").onclick = () => run("novice");
-</script>
-</body>
-</html>
+const V = ["v1-rooms", "v2-radar", "v3-pipeline", "v4-labyrinth", "v5-dial", "v6-network"];
+document.getElementById("grid").innerHTML = V.map((v, i) => `
+  <div class="tile"><span class="num">${i + 1}</span>
+    <div class="frame"><iframe src="/${v}.html?embed=1&auto=skilled" loading="lazy" title="Version ${i + 1}"></iframe></div>
+    <a href="/${v}.html" aria-label="Open version ${i + 1}"></a></div>`).join("");
+</script></body></html>
