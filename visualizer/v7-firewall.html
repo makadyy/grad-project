@@ -177,7 +177,7 @@ async function play(data, name) {
   }
   $("cap").textContent = "Try another visitor →";
 }
-mount({ build, play, viewBox: "0 0 960 500",
+mount({ build, play, viewBox: "0 0 960 500", withResult: true,
   buttons: [{ name: "normal", label: "Normal person" }, { name: "insider", label: "Snooping employee" },
             { name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }],
   order: ["normal", "insider", "skilled", "normal", "insider", "novice"] });

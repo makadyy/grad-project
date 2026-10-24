@@ -27,7 +27,7 @@ function setButtons(disabled) { document.querySelectorAll("button").forEach(b =>
  * buttons: [{ name, label }] shown under the scene (default: skilled attacker + beginner)
  * order:   scenario names replayed in sequence when ?loop is set
  */
-function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
+function mount({ viewBox = "0 0 960 440", build, play, buttons, order, withResult = false }) {
   const q = new URLSearchParams(location.search);
   if (q.has("embed")) document.body.classList.add("embed");
   buttons = buttons || [{ name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }];
@@ -35,7 +35,7 @@ function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
   $("app").innerHTML = `
     <div class="top"><b>LabyrinthAI</b><a href="/">← all versions</a></div>
     <div class="scene"><svg id="svg" viewBox="${viewBox}" role="img" aria-label="LabyrinthAI animation"></svg></div>
-    <div class="result" id="result" hidden></div>
+    ${withResult ? '<div class="result" id="result" hidden></div>' : ""}
     <div class="bar">
       <div class="caption" id="cap">Pick a visitor →</div>
       <div class="controls">${buttons.map((b, i) => `<button data-n="${b.name}" class="${i ? "alt" : ""}">${b.label}</button>`).join("")}</div>
@@ -45,7 +45,7 @@ function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
   async function run(name) {
     if (running) return;
     running = true; setButtons(true);
-    $("result").hidden = true;
+    if ($("result")) $("result").hidden = true;
     build();
     $("cap").textContent = "…";
     try {
