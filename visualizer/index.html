@@ -63,6 +63,13 @@ button:disabled { opacity: .5; cursor: default; }
 .decision.contain { background: var(--ok-soft); }
 .small { font-size: 12px; color: var(--mute); word-break: break-all; margin-top: 8px; }
 .idle { color: var(--mute); }
+.story { display: grid; gap: 10px; }
+.mv { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; animation: in .3s; }
+.mv .l { display: grid; grid-template-columns: 92px 1fr; gap: 8px; margin: 2px 0; }
+.mv .l span:first-child { color: var(--mute); }
+.mv.last { border-color: var(--accent); }
+.mv.win { border-color: var(--ok); background: var(--ok-soft); }
+@keyframes in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 900px) {
   .flow { grid-template-columns: 1fr; gap: 18px; }
@@ -76,7 +83,8 @@ button:disabled { opacity: .5; cursor: default; }
 <body>
 <main>
   <h1>LabyrinthAI</h1>
-  <p class="sub">A fake copy of a company's network that attackers get lured into. An AI watches what they do, decides how to react, and locks them out. Press a button to watch it work.</p>
+  <p class="sub">Think of a thief breaking into a bank. Instead of the real bank, we let them into a <b>fake bank</b> with hidden cameras. An AI watches everything they do and decides how to react. If they turn out to be dangerous, it locks them out.</p>
+  <p class="sub"><b>Press a button at the bottom</b> and watch a fake attacker go through the system, one move at a time.</p>
 
   <section class="flow" id="flow">
     <div class="node" data-n="attacker"><h3>1. Attacker</h3><p>Breaks into the company network.</p><span class="tag">outside</span></div>
@@ -84,7 +92,7 @@ button:disabled { opacity: .5; cursor: default; }
     <div class="node" data-n="logs"><h3>3. Logging</h3><p>Every action is recorded and streamed out.</p><span class="tag">not in repo yet</span></div>
     <div class="node" data-n="ai"><h3>4. AI brain</h3><p>Judges the attacker and picks a response.</p><span class="tag built">in repo</span></div>
     <div class="node" data-n="contain"><h3>5. Containment</h3><p>Cuts the attacker off automatically.</p><span class="tag">not in repo yet</span></div>
-    <div class="node" data-n="proof"><h3>6. Evidence</h3><p>Tamper-proof record of what happened.</p><span class="tag">fingerprint only</span></div>
+    <div class="node" data-n="proof"><h3>6. Evidence</h3><p>Tamper-proof record of what happened.</p><span class="tag">not in repo yet</span></div>
     <div class="node" data-n="dash"><h3>7. Dashboard</h3><p>Analysts watch and see why.</p><span class="tag">not in repo yet</span></div>
   </section>
 
@@ -124,7 +132,22 @@ const MEANING = {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let running = false;
 
-function pips(n) { return [0, 1, 2].map(i => `<span class="pip ${i < n ? "f" : ""}"></span>`).join(""); }
+const PLAIN = {
+  OBSERVE: "Does nothing, just keeps watching quietly.",
+  DEEPEN: "Opens a new fake room so the attacker goes deeper into the trap.",
+  LURE: "Leaves fake bait (like a fake password file) for them to find.",
+  SLOW: "Slows things down so they waste time and we stay hidden.",
+  CONTAIN: "Locks the attacker out. Caught!",
+};
+function think(s) {
+  const f = s.features;
+  if (s.contained) return "This one is dangerous: they have been changing our data. Time to stop them.";
+  if (f.database_write_count > 0) return "They are changing data, so this is serious.";
+  if (f.suspicious_command_count >= 2) return "Several attacker-style commands. Clearly not a normal user.";
+  if (f.suspicious_command_count === 1) return "One suspicious command. Probably skilled, keep watching.";
+  if (f.portal_auth_failure_count > 0) return "Trying to guess a password. Getting more suspicious.";
+  return "Looks like a beginner so far. Nothing dangerous yet.";
+}
 function clearAll() { Object.values(nodes).forEach(n => n.classList.remove("on", "done")); Object.values(parts).forEach(p => p.classList.remove("on")); }
 function fmt(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n.toLocaleString(); }
 
@@ -150,14 +173,15 @@ async function run(name) {
   try { data = await (await fetch("/api/run?scenario=" + name)).json(); }
   catch (e) { now.innerHTML = '<p class="idle">Server not reachable.</p>'; running = false; document.querySelectorAll("button").forEach(b => b.disabled = false); return; }
 
+  now.innerHTML = '<div class="story" id="story"></div>';
+  const story = $("#story");
   for (const [i, s] of data.steps.entries()) {
-    now.innerHTML = `
-      <p class="big">${i + 1}/${data.steps.length} · ${s.caption}</p>
-      <div class="row"><span class="lbl">Knows</span><span class="pips">${pips(s.state.intel)}</span> about them</div>
-      <div class="row"><span class="lbl">Risk</span><span class="pips">${pips(s.state.exposure)}</span> of being spotted</div>
-      <div class="row"><span class="lbl">Alarm</span><span class="pips">${pips(s.state.alert)}</span></div>
-      <div class="row"><span class="lbl">Progress</span><span class="pips">${pips(s.state.progress)}</span> toward our goal</div>
-      <div class="decision ${s.contained ? "contain" : ""}"><b>${s.executed}</b> · ${MEANING[s.executed]}${s.shielded ? " (shield changed the move)" : ""}</div>`;
+    story.querySelectorAll(".last").forEach(e => e.classList.remove("last"));
+    story.insertAdjacentHTML("beforeend", `<div class="mv last ${s.contained ? "win" : ""}">
+      <div class="l"><span>Attacker</span><span><b>${i + 1}.</b> ${s.caption}</span></div>
+      <div class="l"><span>AI thinks</span><span>${think(s)}</span></div>
+      <div class="l"><span>System</span><span><b>${PLAIN[s.executed]}</b></span></div></div>`);
+    story.lastElementChild.scrollIntoView({ block: "nearest", behavior: "smooth" });
     await pulse(["attacker", "twin", "logs"], 260);
     nodes.ai.classList.add("on"); parts.prof.classList.add("on");
     await sleep(380);
@@ -167,13 +191,13 @@ async function run(name) {
     if (s.contained) {
       await pulse(["contain", "proof", "dash"], 450);
       Object.values(nodes).slice(1).forEach(n => n.classList.add("done"));
-      now.insertAdjacentHTML("beforeend", `<div class="small">Contained. Evidence fingerprint (SHA-256): ${data.evidence_sha256}</div>`);
+      now.insertAdjacentHTML("beforeend", `<p class="small">Attacker caught and cut off. The whole session is saved as tamper-proof evidence.</p>`);
       break;
     }
     nodes.dash.classList.add("on"); await sleep(150); nodes.dash.classList.remove("on");
-    await sleep(250);
+    await sleep(900);
   }
-  if (data.outcome !== "contained") now.insertAdjacentHTML("beforeend", `<div class="small">Session ended: the AI judged this attacker low-risk and kept watching. No lock-out needed.</div>`);
+  if (data.outcome !== "contained") now.insertAdjacentHTML("beforeend", `<div class="small">The end. This attacker never did anything dangerous, so the AI just kept watching. No lock-out needed.</div>`);
   document.querySelectorAll("button").forEach(b => b.disabled = false);
   running = false;
 }
