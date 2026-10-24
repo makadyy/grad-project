@@ -46,6 +46,10 @@ function mount({ viewBox = "0 0 960 440", build, play }) {
       await play(data);
     } catch (e) { $("cap").textContent = "Server not reachable."; }
     setButtons(false); running = false;
+    if (q.has("loop")) {  // keep replaying, alternating attackers (used by the side-by-side wall)
+      await sleep(2500);
+      run(name === "skilled" ? "novice" : "skilled");
+    }
   }
   build();
   $("b-skilled").onclick = () => run("skilled");

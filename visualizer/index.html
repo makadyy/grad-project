@@ -3,23 +3,25 @@
 <title>LabyrinthAI Versions</title>
 <link rel="stylesheet" href="common.css">
 <style>
-h1 { font-size: 22px; margin: 0 0 16px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
-.tile { position: relative; border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
-.frame { position: relative; aspect-ratio: 16 / 8; overflow: hidden; }
+body { overflow-x: hidden; }
+main { max-width: none; padding: 12px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.tile { position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--card); overflow: hidden; }
+.frame { position: relative; aspect-ratio: 960 / 470; overflow: hidden; }
 .frame iframe { width: 200%; height: 200%; border: 0; transform: scale(.5); transform-origin: top left; pointer-events: none; }
 .tile a { position: absolute; inset: 0; z-index: 2; }
-.num { position: absolute; top: 10px; left: 10px; z-index: 3; width: 32px; height: 32px; border-radius: 50%;
+.num { position: absolute; top: 8px; left: 8px; z-index: 3; width: 30px; height: 30px; border-radius: 50%;
   background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
 </style></head>
 <body><main>
-  <h1>Pick a version</h1>
   <div class="grid" id="grid"></div>
 </main>
 <script>
 const V = ["v1-rooms", "v2-radar", "v3-pipeline", "v4-labyrinth", "v5-dial", "v6-network"];
 document.getElementById("grid").innerHTML = V.map((v, i) => `
   <div class="tile"><span class="num">${i + 1}</span>
-    <div class="frame"><iframe src="/${v}.html?embed=1&auto=skilled" loading="lazy" title="Version ${i + 1}"></iframe></div>
-    <a href="/${v}.html" aria-label="Open version ${i + 1}"></a></div>`).join("");
+    <div class="frame"><iframe src="/${v}.html?embed=1&auto=skilled&loop=1" title="Version ${i + 1}"></iframe></div>
+    <a href="/${v}.html" aria-label="Open version ${i + 1} full size"></a></div>`).join("");
 </script></body></html>
