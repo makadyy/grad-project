@@ -10,7 +10,6 @@
 .node.okn { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 20%, var(--room)); }
 .edge { stroke: var(--line); stroke-width: 3; transition: stroke .4s, opacity .4s; }
 .edge.fake { stroke: var(--accent); stroke-dasharray: 8 6; }
-.edge.real { stroke: var(--line); }
 .edge.pick { stroke-width: 5; }
 .edge.real.pick { stroke: var(--ok); }
 .edge.dim { opacity: .25; }
@@ -19,68 +18,71 @@
 .stage { fill: var(--room); stroke: var(--line); stroke-width: 3; transition: all .4s; }
 .stage.on { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 14%, var(--room)); }
 .stage.okv { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 16%, var(--room)); }
+.stage.warnv { stroke: var(--gold); fill: color-mix(in srgb, var(--gold) 16%, var(--room)); }
 .stage.badv { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 14%, var(--room)); }
-.g { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; transition: opacity .3s; }
+.g { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .tok { transition: transform .8s cubic-bezier(.5,0,.2,1); }
 .halo { fill: none; stroke-width: 6; transition: stroke .6s; }
+.lever { transition: transform .7s cubic-bezier(.5,0,.2,1), stroke .4s; stroke-width: 7; stroke-linecap: round; }
 .verdict { font-size: 22px !important; font-weight: 700; letter-spacing: .06em; }
+.pupil { transform-box: fill-box; transform-origin: center; }
+.pupil.think { animation: pulse .8s ease-in-out infinite; }
 </style></head>
 <body><main id="app"></main>
 <script src="common.js"></script>
 <script>
 const Y = 240;
-const P = { v: [70, Y], a: [200, Y], b: [290, Y], c: [380, Y],
-            web: [570, 110], files: [670, 70], db: [700, 170], vault: [820, 110],
-            r1: [570, 390], r2: [680, 435], r3: [790, 390], ai: [885, 270] };
+const P = { v: [70, Y], a: [200, Y], b: [300, Y], c: [395, Y],
+            web: [600, 110], files: [710, 70], db: [740, 175], vault: [870, 110],
+            r1: [600, 390], r2: [720, 435], r3: [840, 390] };
 const FAKE = ["web", "files", "db", "vault"], REAL = ["r1", "r2", "r3"];
+const deg = (to) => Math.atan2(P[to][1] - P.c[1], P[to][0] - P.c[0]) * 180 / Math.PI;
 let S;
 
 function build() {
   svg.innerHTML = "";
-  S = { nodes: {}, st: [], idx: 0 };
+  S = { nodes: {}, idx: 0 };
   const line = (a, b, cls) => el("line", { x1: P[a][0], y1: P[a][1], x2: P[b][0], y2: P[b][1], class: cls });
 
-  // branches out of the firewall
   S.eFake = line("c", "web", "edge fake");
   S.eReal = line("c", "r1", "edge real");
   line("web", "files", "edge fake"); line("files", "db", "edge fake"); line("db", "vault", "edge fake"); line("web", "db", "edge fake");
   line("r1", "r2", "edge real"); line("r2", "r3", "edge real"); line("r1", "r3", "edge real");
   FAKE.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node fake" }); });
   REAL.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 24, class: "node" }); });
-  el("text", { x: 700, y: 28 }, svg, "Fake network");
-  el("text", { x: 680, y: 485 }, svg, "Real network");
+  el("text", { x: 740, y: 28 }, svg, "Fake network");
+  el("text", { x: 720, y: 485 }, svg, "Real network");
 
-  // visitor
+  // visitor (identity unknown until the AI decides)
   S.pr = el("circle", { cx: P.v[0], cy: P.v[1], r: 26, fill: "none", stroke: css("--mute"), "stroke-width": 3 });
   S.pf = el("g", { fill: css("--mute") });
   el("circle", { cx: P.v[0], cy: P.v[1] - 7, r: 7 }, S.pf);
   el("path", { d: `M${P.v[0] - 15} ${P.v[1] + 15} Q${P.v[0]} ${P.v[1] - 4} ${P.v[0] + 15} ${P.v[1] + 15}` }, S.pf);
-  el("text", { x: P.v[0], y: P.v[1] + 56 }, svg, "Visitor");
+  S.vl = el("text", { x: P.v[0], y: P.v[1] + 56 }, svg, "Visitor");
 
-  // firewall box with its three steps
-  el("rect", { x: 152, y: 188, width: 278, height: 124, rx: 18, class: "fw" });
-  el("text", { x: 291, y: 176 }, svg, "Firewall");
-  ["a", "b", "c"].forEach(k => S.st.push(el("circle", { cx: P[k][0], cy: Y, r: 30, class: "stage" })));
-  el("line", { x1: P.a[0] + 30, y1: Y, x2: P.b[0] - 30, y2: Y, stroke: css("--line"), "stroke-width": 3 });
-  el("line", { x1: P.b[0] + 30, y1: Y, x2: P.c[0] - 30, y2: Y, stroke: css("--line"), "stroke-width": 3 });
-  const g = (cls = "g") => el("g");
-  // 1 look (magnifier)
-  let ga = el("g"); el("circle", { cx: P.a[0] - 3, cy: Y - 3, r: 9, class: "g" }, ga); el("path", { d: `M${P.a[0] + 4} ${Y + 4} L${P.a[0] + 12} ${Y + 12}`, class: "g" }, ga);
-  // 2 attack? (shield)
-  S.shield = el("path", { d: `M${P.b[0]} ${Y - 16} L${P.b[0] + 14} ${Y - 10} V${Y + 2} Q${P.b[0] + 14} ${Y + 14} ${P.b[0]} ${Y + 20} Q${P.b[0] - 14} ${Y + 14} ${P.b[0] - 14} ${Y + 2} V${Y - 10} Z`, class: "g" });
-  // 3 route (fork)
-  el("path", { d: `M${P.c[0] - 14} ${Y} H${P.c[0]} M${P.c[0]} ${Y} L${P.c[0] + 12} ${Y - 11} M${P.c[0]} ${Y} L${P.c[0] + 12} ${Y + 11}`, class: "g" });
-  [["a", "Look"], ["b", "Attack?"], ["c", "Route"]].forEach(([k, t]) => el("text", { x: P[k][0], y: 300 }, svg, t));
-  S.verdict = el("text", { x: 291, y: 150, class: "verdict", fill: css("--mute") }, svg, "");
+  // firewall: Look -> AI decides -> Route switch
+  el("rect", { x: 152, y: 188, width: 288, height: 124, rx: 18, class: "fw" });
+  el("text", { x: 296, y: 176 }, svg, "Firewall");
+  el("line", { x1: P.a[0] + 30, y1: Y, x2: P.b[0] - 36, y2: Y, stroke: css("--line"), "stroke-width": 3 });
+  el("line", { x1: P.b[0] + 36, y1: Y, x2: P.c[0] - 8, y2: Y, stroke: css("--line"), "stroke-width": 3 });
+  S.stA = el("circle", { cx: P.a[0], cy: Y, r: 30, class: "stage" });
+  el("circle", { cx: P.a[0] - 3, cy: Y - 3, r: 9, class: "g" });
+  el("path", { d: `M${P.a[0] + 4} ${Y + 4} L${P.a[0] + 12} ${Y + 12}`, class: "g" });
+  S.halo = el("circle", { cx: P.b[0], cy: Y, r: 45, class: "halo", stroke: css("--line"), opacity: 0 });
+  S.stB = el("circle", { cx: P.b[0], cy: Y, r: 36, class: "stage" });
+  el("ellipse", { cx: P.b[0], cy: Y, rx: 24, ry: 14, class: "g" });
+  S.pupil = el("circle", { cx: P.b[0], cy: Y, r: 7, fill: css("--accent"), class: "pupil" });
+  // route = a real switch lever that swings to one of the two lanes
+  S.lever = el("line", { x1: P.c[0], y1: Y, x2: P.c[0] + 42, y2: Y, stroke: css("--mute"), class: "lever" });
+  S.lever.style.transformOrigin = `${P.c[0]}px ${Y}px`;
+  el("circle", { cx: P.c[0], cy: Y, r: 9, fill: css("--ink") });
+  el("text", { x: P.a[0], y: 304 }, svg, "Look");
+  el("text", { x: P.b[0], y: 304 }, svg, "AI decides");
+  el("text", { x: P.c[0], y: 304 }, svg, "Route");
+
+  S.verdict = el("text", { x: 296, y: 148, class: "verdict", fill: css("--mute") }, svg, "");
+  S.badge = el("text", { x: 296, y: 350, class: "big", fill: css("--mute") }, svg, "");
   S.mark = el("g", { opacity: 0 });
-
-  // AI
-  S.halo = el("circle", { cx: P.ai[0], cy: P.ai[1], r: 46, class: "halo", stroke: css("--line") });
-  el("circle", { cx: P.ai[0], cy: P.ai[1], r: 40, fill: css("--card") });
-  el("ellipse", { cx: P.ai[0], cy: P.ai[1], rx: 26, ry: 15, fill: "none", stroke: css("--ink"), "stroke-width": 2.5 });
-  el("circle", { cx: P.ai[0], cy: P.ai[1], r: 7, fill: css("--accent") });
-  el("text", { x: P.ai[0], y: P.ai[1] + 70 }, svg, "AI");
-  S.badge = el("text", { x: P.ai[0], y: P.ai[1] + 100, class: "big", fill: css("--mute") }, svg, "");
   S.beam = el("line", { x1: 0, y1: 0, x2: 0, y2: 0, stroke: css("--accent"), "stroke-width": 2.5, "stroke-dasharray": "6 6", opacity: 0 });
 
   S.tok = el("g", { class: "tok" });
@@ -90,53 +92,66 @@ function build() {
 
 const moveTo = n => { S.tok.style.transition = ""; S.tok.style.transform = `translate(${P[n][0]}px, ${P[n][1]}px)`; };
 
-async function throughFirewall(good) {
-  const col = good ? css("--ok") : css("--bad");
-  S.tc.setAttribute("fill", col); S.pr.setAttribute("stroke", col); S.pf.setAttribute("fill", col);
+const KINDS = {
+  normal:   { col: "--ok",   cls: "okv",   verdict: "ALLOWED",     who: "Staff member", sym: "M-9 0 L-2 9 L10 -9" },
+  insider:  { col: "--gold", cls: "warnv", verdict: "NOT THEIRS",  who: "Staff member", sym: "M0 -9 V2 M0 9 V9.5" },
+  attacker: { col: "--bad",  cls: "badv",  verdict: "ATTACK",      who: "Outsider",     sym: "M-8 -8 L8 8 M8 -8 L-8 8" },
+};
+
+async function throughFirewall(kind) {
+  const K = KINDS[kind], col = css(K.col), good = kind === "normal";
   await sleep(500);
-  for (const [i, k] of ["a", "b", "c"].entries()) {
-    S.st[i].classList.add("on"); moveTo(k); await sleep(900);
-    if (k === "b") {  // the decision
-      S.st[i].classList.remove("on"); S.st[i].classList.add(good ? "okv" : "badv");
-      S.shield.style.opacity = .15;
-      el("path", { d: good ? `M${P.b[0] - 10} ${Y} L${P.b[0] - 2} ${Y + 9} L${P.b[0] + 11} ${Y - 9}` : `M${P.b[0] - 9} ${Y - 9} L${P.b[0] + 9} ${Y + 9} M${P.b[0] + 9} ${Y - 9} L${P.b[0] - 9} ${Y + 9}`,
-        fill: "none", stroke: col, "stroke-width": 5, "stroke-linecap": "round", "stroke-linejoin": "round" });
-      S.verdict.textContent = good ? "NORMAL" : "ATTACK"; S.verdict.setAttribute("fill", col);
-      await sleep(900);
-    } else if (k === "a") {
-      S.st[i].classList.remove("on"); S.st[i].classList.add(good ? "okv" : "badv");
-    }
-  }
-  S.st[2].classList.add(good ? "okv" : "badv"); S.st[2].classList.remove("on");
-  // route: highlight chosen branch, fade the other
+  S.stA.classList.add("on"); moveTo("a"); await sleep(1000);
+  S.stA.classList.remove("on");
+  S.stB.classList.add("on"); S.pupil.classList.add("think"); moveTo("b"); await sleep(1500);   // the AI is thinking
+  // decision: colour everything by who this really is
+  S.pupil.classList.remove("think");
+  S.stB.classList.remove("on"); S.stB.classList.add(K.cls);
+  [S.stA].forEach(s => s.classList.add(K.cls));
+  S.tc.setAttribute("fill", col); S.pr.setAttribute("stroke", col); S.pf.setAttribute("fill", col);
+  S.vl.textContent = K.who;
+  S.verdict.textContent = K.verdict; S.verdict.setAttribute("fill", col);
+  el("circle", { cx: P.b[0] + 30, cy: Y - 32, r: 14, fill: col }, S.mark);
+  el("path", { d: K.sym, transform: `translate(${P.b[0] + 30} ${Y - 32}) scale(.7)`, fill: "none", stroke: "#fff", "stroke-width": 3.5, "stroke-linecap": "round", "stroke-linejoin": "round" }, S.mark);
+  S.mark.setAttribute("opacity", 1);
+  await sleep(1200);
+  // route: swing the switch to the chosen lane
+  moveTo("c"); await sleep(700);
+  const target = good ? "r1" : "web";
+  S.lever.setAttribute("stroke", col);
+  S.lever.style.transform = `rotate(${deg(target)}deg)`;
   (good ? S.eReal : S.eFake).classList.add("pick");
   (good ? S.eFake : S.eReal).classList.add("dim");
-  await sleep(300);
+  await sleep(900);
 }
 
 async function play(data, name) {
-  if (name === "normal") {
-    await throughFirewall(true);
+  const kind = name === "normal" ? "normal" : name === "insider" ? "insider" : "attacker";
+  await throughFirewall(kind);
+
+  if (kind === "normal") {
     for (const [i, s] of data.steps.entries()) {
       const n = REAL[Math.min(i, REAL.length - 1)];
       moveTo(n); S.nodes[n].classList.add("okn");
       $("cap").textContent = s.caption;
       await sleep(1500);
     }
-    $("cap").textContent = "Normal visitor. Sent straight to the real network.";
+    showResult("ok", "Normal visitor → real network",
+      "They only asked for things they are allowed to see, so the firewall let them through to the real network.");
+    $("cap").textContent = "Try another visitor →";
     return;
   }
-  await throughFirewall(false);
+
   moveTo("web"); S.nodes.web.classList.add("hit"); await sleep(1000);
   for (const s of data.steps) {
     $("cap").textContent = s.caption;
     const cur = FAKE[S.idx];
     S.beam.setAttribute("x1", P[cur][0]); S.beam.setAttribute("y1", P[cur][1]);
-    S.beam.setAttribute("x2", P.ai[0] - 46); S.beam.setAttribute("y2", P.ai[1]); S.beam.setAttribute("opacity", 1);
+    S.beam.setAttribute("x2", P.b[0] + 30); S.beam.setAttribute("y2", Y - 40); S.beam.setAttribute("opacity", 1);
     await sleep(600);
     S.beam.setAttribute("opacity", 0);
     const th = threat(s);
-    S.halo.setAttribute("stroke", threatColor(th));
+    S.halo.setAttribute("opacity", 1); S.halo.setAttribute("stroke", threatColor(th));
     S.badge.textContent = WORD[s.executed]; S.badge.setAttribute("fill", s.contained ? css("--bad") : css("--accent"));
     if (s.executed === "DEEPEN" && S.idx < FAKE.length - 1) { S.idx++; const n = FAKE[S.idx]; moveTo(n); S.nodes[n].classList.add("hit"); }
     if (s.contained) {
@@ -148,9 +163,22 @@ async function play(data, name) {
     }
     await sleep(1300);
   }
-  endCaption(data, "Attacker caught in the fake network. The real one was never touched.");
+  const caught = data.outcome === "contained";
+  if (kind === "insider") {
+    showResult("warn", caught ? "Employee went where they should not → fake network, then locked out"
+                              : "Employee reached for data that is not theirs → moved to the fake network",
+      "They work here, but they asked for things outside their access. The firewall sent them to the fake network, where the AI watches and nothing real can be touched.");
+  } else if (caught) {
+    showResult("bad", "Attacker caught in the fake network",
+      "The AI locked them out. The real network was never touched.");
+  } else {
+    showResult("bad", "Beginner stuck in the fake network",
+      "Nothing dangerous happened, so the AI just kept watching. The real network was never touched.");
+  }
+  $("cap").textContent = "Try another visitor →";
 }
 mount({ build, play, viewBox: "0 0 960 500",
-  buttons: [{ name: "normal", label: "Normal person" }, { name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }],
-  order: ["normal", "skilled", "normal", "novice"] });
+  buttons: [{ name: "normal", label: "Normal person" }, { name: "insider", label: "Snooping employee" },
+            { name: "skilled", label: "Skilled attacker" }, { name: "novice", label: "Beginner" }],
+  order: ["normal", "insider", "skilled", "normal", "insider", "novice"] });
 </script></body></html>

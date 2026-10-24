@@ -27,6 +27,15 @@ button { font: inherit; padding: 10px 18px; border-radius: 10px; border: 1px sol
   background: var(--accent); color: #fff; cursor: pointer; }
 button.alt { background: transparent; color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
+.result { margin-top: 12px; padding: 16px 20px; border-radius: 14px; border: 2px solid var(--line);
+  border-left-width: 8px; display: grid; gap: 4px; animation: rise .4s ease-out; }
+.result b { font-size: 24px; line-height: 1.25; }
+.result span { font-size: 17px; color: var(--ink); opacity: .85; }
+.result.ok { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--card)); }
+.result.warn { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--card)); }
+.result.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--card)); }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+body.embed .result { display: none; }
 body.embed main { padding: 0; }
 body.embed .top, body.embed .bar { display: none; }
 body.embed .scene { margin: 0; border: 0; border-radius: 0; }

@@ -35,6 +35,7 @@ function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
   $("app").innerHTML = `
     <div class="top"><b>LabyrinthAI</b><a href="/">← all versions</a></div>
     <div class="scene"><svg id="svg" viewBox="${viewBox}" role="img" aria-label="LabyrinthAI animation"></svg></div>
+    <div class="result" id="result" hidden></div>
     <div class="bar">
       <div class="caption" id="cap">Pick a visitor →</div>
       <div class="controls">${buttons.map((b, i) => `<button data-n="${b.name}" class="${i ? "alt" : ""}">${b.label}</button>`).join("")}</div>
@@ -44,6 +45,7 @@ function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
   async function run(name) {
     if (running) return;
     running = true; setButtons(true);
+    $("result").hidden = true;
     build();
     $("cap").textContent = "…";
     try {
@@ -60,6 +62,14 @@ function mount({ viewBox = "0 0 960 440", build, play, buttons, order }) {
   build();
   document.querySelectorAll("button").forEach(b => b.onclick = () => run(b.dataset.n));
   if (q.get("auto")) { idx = Math.max(0, order.indexOf(q.get("auto"))); run(q.get("auto")); }
+}
+
+/** Big end-of-run banner. kind: "ok" | "warn" | "bad". */
+function showResult(kind, title, sub) {
+  const r = $("result");
+  r.className = "result " + kind;
+  r.innerHTML = `<b>${title}</b><span>${sub}</span>`;
+  r.hidden = false;
 }
 
 function endCaption(data, caught) {
