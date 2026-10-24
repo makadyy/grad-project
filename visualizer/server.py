@@ -69,6 +69,22 @@ SCENARIOS = {
 }
 
 
+def _icon(source: str, etype: str, extra: dict) -> tuple[str, str]:
+    """Which picture the page draws for an event, plus a tiny label under it."""
+    cmd = extra.get("command", "")
+    if source == "cowrie":
+        if "wget" in cmd or "curl" in cmd:
+            return "download", cmd.split()[0]
+        if "/etc/shadow" in cmd:
+            return "secretfile", "/etc/shadow"
+        return "terminal", cmd.split()[0] if cmd else "command"
+    if source == "portal":
+        return ("login", "login") if etype.endswith("success") else ("wrongpass", "login")
+    if source == "database":
+        return ("dbwrite" if "write" in etype or "delete" in etype else "dbread"), extra.get("resource", "")
+    return "alarm", extra.get("resource", "")
+
+
 def run_session(name: str) -> dict:
     events = SCENARIOS[name]
     extractor = FeatureExtractor()
@@ -91,8 +107,9 @@ def run_session(name: str) -> dict:
         obs, info = env.reset(options={"state": state})
         action = choose_action(obs, info["action_mask"])
         _, reward, terminated, truncated, step = env.step(action)
+        icon, tag = _icon(source, etype, extra)
         steps.append({
-            "caption": caption, "source": source, "event_type": etype,
+            "caption": caption, "source": source, "event_type": etype, "icon": icon, "tag": tag,
             "features": {k: f[k] for k in ("event_count", "suspicious_command_count",
                                            "portal_auth_failure_count", "database_write_count",
                                            "wazuh_critical_severity_count", "distinct_resource_count")},

@@ -20,28 +20,71 @@
 .stage.okv { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 16%, var(--room)); }
 .stage.warnv { stroke: var(--gold); fill: color-mix(in srgb, var(--gold) 16%, var(--room)); }
 .stage.badv { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 14%, var(--room)); }
-.g { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ic.red { stroke: var(--bad); } .ic.gold { stroke: var(--gold); } .ic.green { stroke: var(--ok); } .ic.acc { stroke: var(--accent); }
+.mv { transition: transform .8s cubic-bezier(.5,0,.2,1), opacity .4s; }
 .tok { transition: transform .8s cubic-bezier(.5,0,.2,1); }
 .halo { fill: none; stroke-width: 6; transition: stroke .6s; }
 .lever { transition: transform .7s cubic-bezier(.5,0,.2,1), stroke .4s; stroke-width: 7; stroke-linecap: round; }
-.verdict { font-size: 22px !important; font-weight: 700; letter-spacing: .06em; }
+.cardbg { fill: var(--card); stroke: var(--line); stroke-width: 2; }
+.tag { font-size: 11px; }
 .pupil { transform-box: fill-box; transform-origin: center; }
 .pupil.think { animation: pulse .8s ease-in-out infinite; }
+.wire { stroke: var(--accent); stroke-width: 2; opacity: 0; transition: opacity .3s; }
+.wire.on { opacity: .55; }
+.leg .ring { fill: none; stroke: var(--accent); stroke-width: 2.5; opacity: 0; transition: opacity .3s; }
+.leg.cur .ring { opacity: 1; }
 </style></head>
 <body><main id="app"></main>
 <script src="common.js"></script>
 <script>
 const Y = 240;
 const P = { v: [70, Y], a: [200, Y], b: [300, Y], c: [395, Y],
-            web: [600, 110], files: [710, 70], db: [740, 175], vault: [870, 110],
+            web: [600, 130], files: [710, 80], db: [740, 190], vault: [870, 130],
             r1: [600, 390], r2: [720, 435], r3: [840, 390] };
 const FAKE = ["web", "files", "db", "vault"], REAL = ["r1", "r2", "r3"];
 const deg = (to) => Math.atan2(P[to][1] - P.c[1], P[to][0] - P.c[0]) * 180 / Math.PI;
 let S;
 
+/* ---------- little pictures ---------- */
+function icon(name, parent, s = 1) {
+  const g = el("g", { transform: `scale(${s})` }, parent);
+  const p = (t, a, c = "ic") => el(t, { ...a, class: c }, g);
+  const cyl = () => { p("ellipse", { cx: 0, cy: -9, rx: 11, ry: 4 }); p("path", { d: "M-11 -9 V9 a11 4 0 0 0 22 0 V-9" }); p("path", { d: "M-11 0 a11 4 0 0 0 22 0" }); };
+  const lock = c => { p("rect", { x: -10, y: -1, width: 20, height: 15, rx: 3 }, c); p("path", { d: "M-6 -1 V-6 a6 6 0 0 1 12 0 V-1" }, c); };
+  switch (name) {
+    case "terminal": p("rect", { x: -16, y: -12, width: 32, height: 24, rx: 5 }); p("path", { d: "M-8 -4 L-2 1 L-8 6" }); p("path", { d: "M3 6 H10" }); break;
+    case "download": p("path", { d: "M0 -14 V4" }); p("path", { d: "M-8 -3 L0 5 L8 -3" }); p("path", { d: "M-12 12 H12" }); break;
+    case "secretfile": p("path", { d: "M-10 -15 H3 L11 -7 V15 H-10 Z" }); p("path", { d: "M3 -15 V-7 H11" }); p("circle", { cx: 0, cy: 3, r: 3.5 }, "ic red"); p("path", { d: "M0 6.5 V11" }, "ic red"); break;
+    case "wrongpass": lock("ic"); p("path", { d: "M5 -16 L15 -6 M15 -16 L5 -6" }, "ic red"); break;
+    case "login": p("rect", { x: -10, y: -1, width: 20, height: 15, rx: 3 }, "ic green"); p("path", { d: "M-6 -1 V-6 a6 6 0 0 1 11 -3" }, "ic green"); break;
+    case "dbread": cyl(); p("circle", { cx: 10, cy: 9, r: 5 }, "ic acc"); p("path", { d: "M14 13 L18 17" }, "ic acc"); break;
+    case "dbwrite": cyl(); p("path", { d: "M5 15 L15 5 L18 8 L8 18 Z" }, "ic acc"); break;
+    case "alarm": p("path", { d: "M-10 8 Q-10 -10 0 -10 Q10 -10 10 8 Z" }); p("path", { d: "M-3 12 H3" }); break;
+    // the AI's moves
+    case "OBSERVE": p("ellipse", { cx: 0, cy: 0, rx: 16, ry: 9 }); el("circle", { cx: 0, cy: 0, r: 4.5, fill: css("--accent") }, g); break;
+    case "DEEPEN": p("path", { d: "M-14 -10 L-4 0 L-14 10" }); p("path", { d: "M2 -10 L12 0 L2 10" }); break;
+    case "LURE": p("circle", { cx: -8, cy: 0, r: 6 }, "ic gold"); p("path", { d: "M-2 0 H14 M10 0 V6 M14 0 V5" }, "ic gold"); break;
+    case "SLOW": p("path", { d: "M-9 -14 H9 L0 0 L9 14 H-9 L0 0 Z" }); break;
+    case "CONTAIN": lock("ic red"); break;
+  }
+  return g;
+}
+
+function card(name, tag, tick) {
+  const g = el("g", { class: "mv", opacity: 0 });
+  el("rect", { x: -38, y: -36, width: 76, height: 72, rx: 12, class: "cardbg" }, g);
+  const ic = el("g", { transform: "translate(0 -6)" }, g); icon(name, ic, 1.15);
+  if (tag) el("text", { x: 0, y: 28, class: "tag" }, g, tag);
+  if (tick) { el("circle", { cx: 34, cy: -32, r: 11, fill: css("--ok") }, g); el("path", { d: "M28 -32 L32 -28 L40 -37", fill: "none", stroke: "#fff", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" }, g); }
+  return g;
+}
+const place = (g, x, y, now, s = 1) => { if (now) g.style.transition = "none"; g.style.transform = `translate(${x}px, ${y}px) scale(${s})`; if (now) { void g.getBoundingClientRect(); g.style.transition = ""; } };
+
+/* ---------- scene ---------- */
 function build() {
   svg.innerHTML = "";
-  S = { nodes: {}, idx: 0 };
+  S = { nodes: {}, idx: 0, leg: {} };
   const line = (a, b, cls) => el("line", { x1: P[a][0], y1: P[a][1], x2: P[b][0], y2: P[b][1], class: cls });
 
   S.eFake = line("c", "web", "edge fake");
@@ -50,29 +93,28 @@ function build() {
   line("r1", "r2", "edge real"); line("r2", "r3", "edge real"); line("r1", "r3", "edge real");
   FAKE.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node fake" }); });
   REAL.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 24, class: "node" }); });
-  el("text", { x: 740, y: 28 }, svg, "Fake network");
+  el("text", { x: 740, y: 36 }, svg, "Fake network");
   el("text", { x: 720, y: 485 }, svg, "Real network");
 
-  // visitor (identity unknown until the AI decides)
+  // visitor
   S.pr = el("circle", { cx: P.v[0], cy: P.v[1], r: 26, fill: "none", stroke: css("--mute"), "stroke-width": 3 });
   S.pf = el("g", { fill: css("--mute") });
   el("circle", { cx: P.v[0], cy: P.v[1] - 7, r: 7 }, S.pf);
   el("path", { d: `M${P.v[0] - 15} ${P.v[1] + 15} Q${P.v[0]} ${P.v[1] - 4} ${P.v[0] + 15} ${P.v[1] + 15}` }, S.pf);
   S.vl = el("text", { x: P.v[0], y: P.v[1] + 56 }, svg, "Visitor");
 
-  // firewall: Look -> AI decides -> Route switch
+  // firewall: Look (reads the request) -> AI decides -> Route switch
   el("rect", { x: 152, y: 188, width: 288, height: 124, rx: 18, class: "fw" });
-  el("text", { x: 296, y: 176 }, svg, "Firewall");
+  el("text", { x: 296, y: 338 }, svg, "Firewall");
   el("line", { x1: P.a[0] + 30, y1: Y, x2: P.b[0] - 36, y2: Y, stroke: css("--line"), "stroke-width": 3 });
   el("line", { x1: P.b[0] + 36, y1: Y, x2: P.c[0] - 8, y2: Y, stroke: css("--line"), "stroke-width": 3 });
   S.stA = el("circle", { cx: P.a[0], cy: Y, r: 30, class: "stage" });
-  el("circle", { cx: P.a[0] - 3, cy: Y - 3, r: 9, class: "g" });
-  el("path", { d: `M${P.a[0] + 4} ${Y + 4} L${P.a[0] + 12} ${Y + 12}`, class: "g" });
+  el("circle", { cx: P.a[0] - 3, cy: Y - 3, r: 9, class: "ic" });
+  el("path", { d: `M${P.a[0] + 4} ${Y + 4} L${P.a[0] + 12} ${Y + 12}`, class: "ic" });
   S.halo = el("circle", { cx: P.b[0], cy: Y, r: 45, class: "halo", stroke: css("--line"), opacity: 0 });
   S.stB = el("circle", { cx: P.b[0], cy: Y, r: 36, class: "stage" });
-  el("ellipse", { cx: P.b[0], cy: Y, rx: 24, ry: 14, class: "g" });
+  el("ellipse", { cx: P.b[0], cy: Y, rx: 24, ry: 14, class: "ic" });
   S.pupil = el("circle", { cx: P.b[0], cy: Y, r: 7, fill: css("--accent"), class: "pupil" });
-  // route = a real switch lever that swings to one of the two lanes
   S.lever = el("line", { x1: P.c[0], y1: Y, x2: P.c[0] + 42, y2: Y, stroke: css("--mute"), class: "lever" });
   S.lever.style.transformOrigin = `${P.c[0]}px ${Y}px`;
   el("circle", { cx: P.c[0], cy: Y, r: 9, fill: css("--ink") });
@@ -80,10 +122,23 @@ function build() {
   el("text", { x: P.b[0], y: 304 }, svg, "AI decides");
   el("text", { x: P.c[0], y: 304 }, svg, "Route");
 
-  S.verdict = el("text", { x: 296, y: 148, class: "verdict", fill: css("--mute") }, svg, "");
-  S.badge = el("text", { x: 296, y: 350, class: "big", fill: css("--mute") }, svg, "");
+  // the AI's current move, shown as a picture above the firewall
+  S.dec = el("g", { class: "mv", opacity: 0 });
+  el("circle", { cx: 0, cy: 0, r: 32, class: "cardbg" }, S.dec);
+  S.decIcon = el("g", {}, S.dec);
+  place(S.dec, P.b[0], 120, true);
   S.mark = el("g", { opacity: 0 });
-  S.beam = el("line", { x1: 0, y1: 0, x2: 0, y2: 0, stroke: css("--accent"), "stroke-width": 2.5, "stroke-dasharray": "6 6", opacity: 0 });
+  S.wire = el("line", { x1: 0, y1: 0, x2: 0, y2: 0, class: "wire" });
+
+  // legend: what each AI move picture means
+  el("text", { x: 40, y: 410, "text-anchor": "start" }, svg, "AI moves");
+  [["OBSERVE", "watch"], ["DEEPEN", "go deeper"], ["LURE", "bait"], ["SLOW", "slow down"], ["CONTAIN", "lock out"]].forEach(([k, label], i) => {
+    const g = el("g", { class: "leg", transform: `translate(${70 + i * 88} 448)` });
+    el("circle", { r: 24, class: "ring" }, g);
+    icon(k, g, .85);
+    el("text", { x: 0, y: 38, class: "tag" }, g, label);
+    S.leg[k] = g;
+  });
 
   S.tok = el("g", { class: "tok" });
   S.tc = el("circle", { r: 12, fill: css("--mute"), stroke: css("--card"), "stroke-width": 3 }, S.tok);
@@ -93,29 +148,32 @@ function build() {
 const moveTo = n => { S.tok.style.transition = ""; S.tok.style.transform = `translate(${P[n][0]}px, ${P[n][1]}px)`; };
 
 const KINDS = {
-  normal:   { col: "--ok",   cls: "okv",   verdict: "ALLOWED",     who: "Staff member", sym: "M-9 0 L-2 9 L10 -9" },
-  insider:  { col: "--gold", cls: "warnv", verdict: "NOT THEIRS",  who: "Staff member", sym: "M0 -9 V2 M0 9 V9.5" },
-  attacker: { col: "--bad",  cls: "badv",  verdict: "ATTACK",      who: "Outsider",     sym: "M-8 -8 L8 8 M8 -8 L-8 8" },
+  normal:   { col: "--ok",   cls: "okv",   who: "Staff member", sym: "M-9 0 L-2 9 L10 -9" },
+  insider:  { col: "--gold", cls: "warnv", who: "Staff member", sym: "M0 -9 V2 M0 9 V9.5" },
+  attacker: { col: "--bad",  cls: "badv",  who: "Outsider",     sym: "M-8 -8 L8 8 M8 -8 L-8 8" },
 };
 
-async function throughFirewall(kind) {
+async function throughFirewall(kind, first) {
   const K = KINDS[kind], col = css(K.col), good = kind === "normal";
   await sleep(500);
-  S.stA.classList.add("on"); moveTo("a"); await sleep(1000);
+  // LOOK: the firewall reads what the visitor is asking for
+  S.stA.classList.add("on"); moveTo("a");
+  const req = card(first.icon, first.tag); place(req, P.a[0], 112, true); svg.appendChild(req);
+  await sleep(700); req.setAttribute("opacity", 1); await sleep(1300);
+  // hand the request to the AI
+  place(req, P.b[0], Y, false, .25); await sleep(800); req.setAttribute("opacity", 0);   // card flows into the AI eye
   S.stA.classList.remove("on");
-  S.stB.classList.add("on"); S.pupil.classList.add("think"); moveTo("b"); await sleep(1500);   // the AI is thinking
-  // decision: colour everything by who this really is
+  // AI DECIDES
+  S.stB.classList.add("on"); S.pupil.classList.add("think"); moveTo("b"); await sleep(1500);
   S.pupil.classList.remove("think");
-  S.stB.classList.remove("on"); S.stB.classList.add(K.cls);
-  [S.stA].forEach(s => s.classList.add(K.cls));
+  S.stB.classList.remove("on"); S.stB.classList.add(K.cls); S.stA.classList.add(K.cls);
   S.tc.setAttribute("fill", col); S.pr.setAttribute("stroke", col); S.pf.setAttribute("fill", col);
   S.vl.textContent = K.who;
-  S.verdict.textContent = K.verdict; S.verdict.setAttribute("fill", col);
   el("circle", { cx: P.b[0] + 30, cy: Y - 32, r: 14, fill: col }, S.mark);
   el("path", { d: K.sym, transform: `translate(${P.b[0] + 30} ${Y - 32}) scale(.7)`, fill: "none", stroke: "#fff", "stroke-width": 3.5, "stroke-linecap": "round", "stroke-linejoin": "round" }, S.mark);
   S.mark.setAttribute("opacity", 1);
   await sleep(1200);
-  // route: swing the switch to the chosen lane
+  // ROUTE: the switch swings to the chosen network
   moveTo("c"); await sleep(700);
   const target = good ? "r1" : "web";
   S.lever.setAttribute("stroke", col);
@@ -125,16 +183,46 @@ async function throughFirewall(kind) {
   await sleep(900);
 }
 
+function setDecision(k) {
+  S.decIcon.innerHTML = ""; icon(k, S.decIcon, 1.3);
+  S.dec.setAttribute("opacity", 1);
+  Object.entries(S.leg).forEach(([n, g]) => g.classList.toggle("cur", n === k));
+}
+
+// one attacker action in the fake network: report -> AI -> reply -> effect
+async function fakeStep(s) {
+  const cur = FAKE[S.idx], [rx, ry] = P[cur];
+  S.wire.setAttribute("x1", rx); S.wire.setAttribute("y1", ry); S.wire.setAttribute("x2", P.b[0]); S.wire.setAttribute("y2", Y);
+  S.wire.classList.add("on");
+  const ev = card(s.icon, s.tag); place(ev, rx, ry - 62, true); svg.appendChild(ev);
+  await sleep(100); ev.setAttribute("opacity", 1); await sleep(900);          // 1. the action happens
+  place(ev, P.b[0], Y, false, .25); await sleep(900); ev.setAttribute("opacity", 0);   // 2. it flows into the AI eye
+  S.pupil.classList.add("think"); await sleep(700); S.pupil.classList.remove("think");
+  const th = threat(s);
+  S.halo.setAttribute("opacity", 1); S.halo.setAttribute("stroke", threatColor(th));
+  setDecision(s.executed);                                                       // 3. the AI picks a move
+  await sleep(900);
+  const rp = card(s.executed, ""); place(rp, P.b[0], 120, true); svg.appendChild(rp);   // reply starts at the decision bubble
+  await sleep(50); rp.setAttribute("opacity", 1); place(rp, rx, ry - 62); await sleep(900);   // 4. the order goes back
+  if (s.executed === "DEEPEN" && S.idx < FAKE.length - 1) { S.idx++; const n = FAKE[S.idx]; moveTo(n); S.nodes[n].classList.add("hit"); }
+  if (s.executed === "LURE") { const b = el("g", { transform: `translate(${rx + 34} ${ry + 30})` }); icon("LURE", b, .9); }
+  await sleep(1000);
+  S.wire.classList.remove("on"); rp.setAttribute("opacity", 0);
+  ev.remove(); setTimeout(() => rp.remove(), 500);
+}
+
 async function play(data, name) {
   const kind = name === "normal" ? "normal" : name === "insider" ? "insider" : "attacker";
-  await throughFirewall(kind);
+  await throughFirewall(kind, data.steps[0]);
 
   if (kind === "normal") {
     for (const [i, s] of data.steps.entries()) {
-      const n = REAL[Math.min(i, REAL.length - 1)];
+      const n = REAL[Math.min(i, REAL.length - 1)], [x, y] = P[n];
       moveTo(n); S.nodes[n].classList.add("okn");
       $("cap").textContent = s.caption;
-      await sleep(1500);
+      const c = card(s.icon, s.tag, true); place(c, x, y - 62, true); svg.appendChild(c);
+      await sleep(100); c.setAttribute("opacity", 1);
+      await sleep(1900); c.setAttribute("opacity", 0);
     }
     showResult("ok", "Normal visitor → real network",
       "They only asked for things they are allowed to see, so the firewall let them through to the real network.");
@@ -145,23 +233,15 @@ async function play(data, name) {
   moveTo("web"); S.nodes.web.classList.add("hit"); await sleep(1000);
   for (const s of data.steps) {
     $("cap").textContent = s.caption;
-    const cur = FAKE[S.idx];
-    S.beam.setAttribute("x1", P[cur][0]); S.beam.setAttribute("y1", P[cur][1]);
-    S.beam.setAttribute("x2", P.b[0] + 30); S.beam.setAttribute("y2", Y - 40); S.beam.setAttribute("opacity", 1);
-    await sleep(600);
-    S.beam.setAttribute("opacity", 0);
-    const th = threat(s);
-    S.halo.setAttribute("opacity", 1); S.halo.setAttribute("stroke", threatColor(th));
-    S.badge.textContent = WORD[s.executed]; S.badge.setAttribute("fill", s.contained ? css("--bad") : css("--accent"));
-    if (s.executed === "DEEPEN" && S.idx < FAKE.length - 1) { S.idx++; const n = FAKE[S.idx]; moveTo(n); S.nodes[n].classList.add("hit"); }
+    await fakeStep(s);
     if (s.contained) {
-      await sleep(900);
       FAKE.forEach(n => S.nodes[n].classList.add("caught"));
       S.eFake.setAttribute("class", "edge cut");
       S.tc.setAttribute("fill", css("--mute"));
+      const [x, y] = P[FAKE[S.idx]];
+      const l = el("g", { transform: `translate(${x} ${y - 46})` }); icon("CONTAIN", l, 1.4);
       break;
     }
-    await sleep(1300);
   }
   const caught = data.outcome === "contained";
   if (kind === "insider") {
