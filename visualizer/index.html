@@ -5,13 +5,14 @@
 <style>
 .node { fill: var(--dim); stroke: var(--line); stroke-width: 3; transition: all .5s; }
 .node.fake { fill: var(--room); stroke: var(--accent); }
+.node.real { fill: var(--room); stroke: var(--ok); }
 .node.hit { fill: color-mix(in srgb, var(--accent) 22%, var(--room)); }
 .node.caught { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 16%, var(--room)); }
 .node.okn { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 20%, var(--room)); }
 .edge { stroke: var(--line); stroke-width: 3; transition: stroke .4s, opacity .4s; }
 .edge.fake { stroke: var(--accent); stroke-dasharray: 8 6; }
 .edge.pick { stroke-width: 5; }
-.edge.real.pick { stroke: var(--ok); }
+.edge.real { stroke: var(--ok); }
 .edge.dim { opacity: .25; }
 .edge.cut { stroke: var(--bad); stroke-dasharray: none; }
 .wall { fill: var(--dim); stroke: var(--mute); stroke-width: 2; }
@@ -31,9 +32,9 @@
 <script>
 const Y = 240;
 const P = { v: [70, Y], g: [270, Y], c: [350, Y],
-            web: [600, 215], files: [710, 175], db: [745, 285], vault: [870, 215],
-            r1: [600, 390], r2: [720, 435], r3: [840, 390] };
-const FAKE = ["web", "files", "db", "vault"], REAL = ["r1", "r2", "r3"];
+            web: [540, 120], files: [650, 120], db: [760, 120], vault: [870, 120],     // fake network: top row
+            r1: [540, 360], r2: [650, 360], r3: [760, 360], r4: [870, 360] };            // real network: bottom row
+const FAKE = ["web", "files", "db", "vault"], REAL = ["r1", "r2", "r3", "r4"];
 const WORDS = { terminal: "command", download: "download", secretfile: "passwords", wrongpass: "guess password", login: "log in" };
 const word = s => WORDS[s.icon] || (s.icon === "dbwrite" ? "change " : "read ") + s.tag;
 let S;
@@ -109,13 +110,13 @@ function build() {
 
   S.eFake = line("c", "web", "edge fake");
   S.eReal = line("c", "r1", "edge real");
-  line("g", "c", "edge real");
-  line("web", "files", "edge fake"); line("files", "db", "edge fake"); line("db", "vault", "edge fake"); line("web", "db", "edge fake");
-  line("r1", "r2", "edge real"); line("r2", "r3", "edge real"); line("r1", "r3", "edge real");
+  line("g", "c", "edge");
+  [["web", "files"], ["files", "db"], ["db", "vault"]].forEach(([a, b]) => line(a, b, "edge fake"));
+  [["r1", "r2"], ["r2", "r3"], ["r3", "r4"]].forEach(([a, b]) => line(a, b, "edge real"));
   FAKE.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node fake" }); });
-  REAL.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 24, class: "node" }); });
-  el("text", { x: 800, y: 335 }, svg, "Fake network");
-  el("text", { x: 720, y: 485 }, svg, "Real network");
+  REAL.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node real" }); });
+  el("text", { x: 705, y: 190 }, svg, "Fake network");
+  el("text", { x: 705, y: 428 }, svg, "Real network");
 
   // firewall: a brick wall with a gate
   bricks(250, 130, 40, 80); bricks(250, 270, 40, 80);
