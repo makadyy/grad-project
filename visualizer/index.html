@@ -3,17 +3,23 @@
 <title>LabyrinthAI Overview</title>
 <link rel="stylesheet" href="common.css">
 <style>
-.node { fill: var(--dim); stroke: var(--line); stroke-width: 3; transition: all .5s; }
+/* both networks sit slightly back; only visited machines and the chosen lane are at full strength */
+.node { fill: var(--dim); stroke: var(--line); stroke-width: 3; opacity: .6; transition: all .5s; }
+.mi { opacity: .6; }
+.node.hit, .node.caught, .node.okn { opacity: 1; }
+.edge.pick, .edge.cut { opacity: 1; }
 .node.fake { fill: var(--room); stroke: var(--accent); }
 .node.real { fill: var(--room); stroke: var(--ok); }
 .node.hit { fill: color-mix(in srgb, var(--accent) 22%, var(--room)); }
 .node.caught { stroke: var(--bad); fill: color-mix(in srgb, var(--bad) 16%, var(--room)); }
 .node.okn { stroke: var(--ok); fill: color-mix(in srgb, var(--ok) 20%, var(--room)); }
-.edge { stroke: var(--line); stroke-width: 3; transition: stroke .4s, opacity .4s; }
+.edge { stroke: var(--line); stroke-width: 3; opacity: .6; transition: stroke .4s, opacity .4s; }
 .edge.fake { stroke: var(--accent); stroke-dasharray: 8 6; }
 .edge.pick { stroke-width: 5; }
 .edge.real { stroke: var(--ok); }
 .edge.dim { opacity: .25; }
+.node.hid, .edge.hid, .mi.hid { opacity: 0; }   /* not created yet */
+.mi { transition: opacity .5s; }
 .edge.cut { stroke: var(--bad); stroke-dasharray: none; }
 .wall { fill: var(--dim); stroke: var(--mute); stroke-width: 2; }
 .brick { stroke: var(--line); stroke-width: 1.5; }
@@ -31,10 +37,14 @@
 <script src="common.js"></script>
 <script>
 const Y = 240;
-const P = { v: [70, Y], g: [270, Y], c: [350, Y],
-            web: [540, 120], files: [650, 120], db: [760, 120], vault: [870, 120],     // fake network: top row
-            r1: [540, 360], r2: [650, 360], r3: [760, 360], r4: [870, 360] };            // real network: bottom row
-const FAKE = ["web", "files", "db", "vault"], REAL = ["r1", "r2", "r3", "r4"];
+// The fake network is a copy (digital twin) of the real one: same six machines, same layout, same links.
+const MACHINES = [["web", 0, 0], ["files", 1, 0], ["db", 2, 0], ["mail", 0, 1], ["admin", 1, 1], ["backup", 2, 1]];   // name, column, row
+const LINKS = [["web", "files"], ["files", "db"], ["mail", "admin"], ["admin", "backup"], ["web", "mail"], ["files", "admin"], ["db", "backup"]];
+const COLS = [560, 670, 780], ROWS = { f: [80, 180], r: [310, 410] };   // f = fake (top), r = real (bottom)
+const P = { v: [70, Y], g: [270, Y], c: [350, Y] };
+for (const [pre, rows] of Object.entries(ROWS)) for (const [n, col, row] of MACHINES) P[pre + n] = [COLS[col], rows[row]];
+const FAKE = ["fweb", "ffiles", "fdb", "fbackup"];   // the route "go deeper" follows through the fake copy
+const REAL = ["rweb", "rfiles", "rdb"];              // the route a normal visitor follows
 const WORDS = { terminal: "command", download: "download", secretfile: "passwords", wrongpass: "guess password", login: "log in" };
 const word = s => WORDS[s.icon] || (s.icon === "dbwrite" ? "change " : "read ") + s.tag;
 let S;
@@ -54,6 +64,13 @@ function icon(name, parent, s = 1) {
     case "login": p("rect", { x: -10, y: -1, width: 20, height: 15, rx: 3 }, "ic green"); p("path", { d: "M-6 -1 V-6 a6 6 0 0 1 11 -3" }, "ic green"); break;
     case "dbread": cyl(); p("circle", { cx: 10, cy: 9, r: 5 }, "ic acc"); p("path", { d: "M14 13 L18 17" }, "ic acc"); break;
     case "dbwrite": cyl(); p("path", { d: "M5 15 L15 5 L18 8 L8 18 Z" }, "ic acc"); break;
+    // machines in the networks
+    case "web": p("circle", { cx: 0, cy: 0, r: 11 }); p("ellipse", { cx: 0, cy: 0, rx: 5, ry: 11 }); p("path", { d: "M-11 0 H11" }); break;
+    case "files": p("path", { d: "M-12 -8 H-3 L0 -4 H12 V9 H-12 Z" }); break;
+    case "db": cyl(); break;
+    case "mail": p("rect", { x: -12, y: -8, width: 24, height: 16, rx: 2 }); p("path", { d: "M-12 -8 L0 2 L12 -8" }); break;
+    case "admin": p("rect", { x: -12, y: -9, width: 24, height: 15, rx: 2 }); p("path", { d: "M-6 11 H6 M0 6 V11" }); break;
+    case "backup": p("rect", { x: -12, y: -6, width: 24, height: 12, rx: 3 }); p("circle", { cx: 7, cy: 0, r: 1.5 }); p("path", { d: "M-7 0 H1" }); break;
     // what the AI does about it
     case "OBSERVE": p("ellipse", { cx: 0, cy: 0, rx: 16, ry: 9 }); el("circle", { cx: 0, cy: 0, r: 4.5, fill: css("--accent") }, g); break;
     case "DEEPEN": p("path", { d: "M-14 -10 L-4 0 L-14 10" }); p("path", { d: "M2 -10 L12 0 L2 10" }); break;
@@ -93,6 +110,17 @@ function showMove(k, th) {
   Object.entries(S.leg).forEach(([n, g]) => g.classList.toggle("cur", n === k));
 }
 
+// The fake network is built around the attacker: entering a machine creates it and the machines next to it.
+const NEIGH = {};
+LINKS.forEach(([a, b]) => { (NEIGH[a] = NEIGH[a] || []).push(b); (NEIGH[b] = NEIGH[b] || []).push(a); });
+function reveal(key) {
+  const name = key.slice(1);
+  [name, ...NEIGH[name]].forEach(n => S.rev.add("f" + n));
+  S.rev.forEach(k => { S.nodes[k].classList.remove("hid"); S.icons[k].classList.remove("hid"); });
+  S.fedges.forEach(e => { if (S.rev.has("f" + e.a) && S.rev.has("f" + e.b)) e.el.classList.remove("hid"); });
+  S.flabel.setAttribute("opacity", 1);
+}
+
 /* ---------- scene ---------- */
 // a brick wall segment
 function bricks(x, y, w, h) {
@@ -108,15 +136,22 @@ function build() {
   S = { nodes: {}, idx: 0, leg: {}, chip: null, move: null };
   const line = (a, b, cls) => el("line", { x1: P[a][0], y1: P[a][1], x2: P[b][0], y2: P[b][1], class: cls });
 
-  S.eFake = line("c", "web", "edge fake");
-  S.eReal = line("c", "r1", "edge real");
+  S.rev = new Set(); S.icons = {}; S.fedges = [];
+  S.eFake = line("c", "fweb", "edge fake hid");
+  S.eReal = line("c", "rweb", "edge real");
   line("g", "c", "edge");
-  [["web", "files"], ["files", "db"], ["db", "vault"]].forEach(([a, b]) => line(a, b, "edge fake"));
-  [["r1", "r2"], ["r2", "r3"], ["r3", "r4"]].forEach(([a, b]) => line(a, b, "edge real"));
-  FAKE.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node fake" }); });
-  REAL.forEach(n => { S.nodes[n] = el("circle", { cx: P[n][0], cy: P[n][1], r: 26, class: "node real" }); });
-  el("text", { x: 705, y: 190 }, svg, "Fake network");
-  el("text", { x: 705, y: 428 }, svg, "Real network");
+  for (const [pre, kind] of [["f", "fake"], ["r", "real"]]) {
+    const h = pre === "f" ? " hid" : "";   // the fake network does not exist until the attacker needs it
+    LINKS.forEach(([a, b]) => { const e = line(pre + a, pre + b, "edge " + kind + h); if (pre === "f") S.fedges.push({ a, b, el: e }); });
+    MACHINES.forEach(([n]) => {
+      const [x, y] = P[pre + n];
+      S.nodes[pre + n] = el("circle", { cx: x, cy: y, r: 26, class: "node " + kind + h });
+      S.icons[pre + n] = el("g", { class: "mi" + h, transform: `translate(${x} ${y})` });
+      icon(n, S.icons[pre + n], .62);
+    });
+  }
+  S.flabel = el("text", { x: 670, y: 236, class: "fade", opacity: 0 }, svg, "Fake network (copy)");
+  el("text", { x: 670, y: 466 }, svg, "Real network");
 
   // firewall: a brick wall with a gate
   bricks(250, 130, 40, 80); bricks(250, 270, 40, 80);
@@ -180,16 +215,17 @@ async function play(data, name) {
     return;
   }
 
-  moveTo("web"); S.nodes.web.classList.add("hit"); await sleep(1000);
+  S.eFake.classList.remove("hid"); reveal(FAKE[0]);            // the first fake machine is created for them
+  moveTo(FAKE[0]); S.nodes[FAKE[0]].classList.add("hit"); await sleep(1000);
   for (const s of data.steps) {
     $("cap").textContent = s.caption;
     showAction(s); await sleep(1300);
     showMove(s.executed, threat(s));
-    if (s.executed === "DEEPEN" && S.idx < FAKE.length - 1) { S.idx++; const n = FAKE[S.idx]; moveTo(n); S.nodes[n].classList.add("hit"); }
+    if (s.executed === "DEEPEN" && S.idx < FAKE.length - 1) { S.idx++; const n = FAKE[S.idx]; reveal(n); moveTo(n); S.nodes[n].classList.add("hit"); }   // a new room is created
     if (s.executed === "LURE") { const [x, y] = P[FAKE[S.idx]]; icon("LURE", el("g", { transform: `translate(${x + 34} ${y + 30})` }), .9); }
     await sleep(1500);
     if (s.contained) {
-      FAKE.forEach(n => S.nodes[n].classList.add("caught"));
+      S.rev.forEach(k => S.nodes[k].classList.add("caught"));
       S.eFake.setAttribute("class", "edge cut");
       S.tc.setAttribute("fill", css("--mute"));
       const lk = el("g", {}, S.tok);                            // the lock closes over the attacker
